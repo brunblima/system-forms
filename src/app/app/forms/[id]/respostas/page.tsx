@@ -61,7 +61,11 @@ interface FormResponse {
 }
 
 export default function FormResponsesPage() {
-  const [formData, setFormData] = useState<FormData | null>(null);
+  const [formData, setFormData] = useState<FormData>({
+    id: '',
+    title: '',
+    questions: [],
+  });
   const [responses, setResponses] = useState<FormResponse[]>([]);
   const { toast } = useToast();
   const params = useParams();
@@ -72,7 +76,7 @@ export default function FormResponsesPage() {
     version: "weekly",
     language: "pt-BR",
   });
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedResponse, setSelectedResponse] = useState<FormResponse | null>(
     null
   );
@@ -248,7 +252,7 @@ export default function FormResponsesPage() {
     }
   };
 
-  if (!formData) return <div>Carregando...</div>;
+  
 
   return (
     <div className="container mx-auto py-10">

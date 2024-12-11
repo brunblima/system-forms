@@ -66,9 +66,9 @@ export default function Home({ userId }: { userId: string }) {
       const response = await fetch(`/api/deleteForm/${id}`, {
         method: "DELETE",
       });
-  
+
       if (!response.ok) throw new Error("Erro ao excluir o formulário");
-  
+
       // Sucesso, adicione qualquer lógica adicional (como redirecionamento)
       alert("Formulário excluído com sucesso");
     } catch (error) {
@@ -76,10 +76,9 @@ export default function Home({ userId }: { userId: string }) {
       alert("Erro ao excluir o formulário");
     }
   }
-  
 
   return (
-    <div className="flex flex-col w-full p-4 space-y-6 bg-background">
+    <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Meus Formulários</h1>
         <Link href="/app/create">
@@ -163,7 +162,7 @@ export default function Home({ userId }: { userId: string }) {
                 </CardContent>
                 <CardFooter>
                   <div className="text-sm text-muted-foreground">
-                    {form.responses} respostas
+                    Respostas: {form.responses}
                   </div>
                 </CardFooter>
               </Card>
@@ -213,11 +212,11 @@ export default function Home({ userId }: { userId: string }) {
               Cancelar
             </Button>
             <Button
-        variant="destructive"
-        onClick={() => handleDeleteForm(deleteDialog.formId)} // Correção aqui
-      >
-        Excluir
-      </Button>
+              variant="destructive"
+              onClick={() => handleDeleteForm(deleteDialog.formId)} // Correção aqui
+            >
+              Excluir
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -40,13 +40,7 @@ export default function EditFormPage() {
     fetchForm();
   }, [params, router]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        Carregando...
-      </div>
-    );
-  }
+  
 
   if (!form) {
     return (

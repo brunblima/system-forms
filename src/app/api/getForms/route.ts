@@ -17,12 +17,23 @@ export async function GET(req: NextRequest) {
     const creatorId = session.user.id;
 
     // Busca todos os formulários do usuário
-    const forms = await db.form.findMany({
-      where: { creatorId },
-      orderBy: { createdAt: "desc" },
+  const forms = await db.form.findMany({
+      where: { creatorId }, // Filtra por usuário, se necessário
+      include: {
+        _count: {
+          select: { responses: true }, // Conta as respostas relacionadas ao formulário
+        },
+      },
     });
 
-    return NextResponse.json(forms);
+    const formattedForms = forms.map((form) => ({
+      id: form.id,
+      title: form.title,
+      createdAt: form.createdAt,
+      responses: form._count.responses || 0, // Número de respostas ou 0 se não houver
+    }));
+
+    return NextResponse.json(formattedForms);
   } catch (error) {
     console.error(error);
     return NextResponse.json(

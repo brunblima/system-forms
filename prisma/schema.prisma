@@ -16,7 +16,7 @@ model Form {
   creator     User       @relation(fields: [creatorId], references: [id]) // Relacionamento com o criador (User)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  responses   Response[] // Respostas relacionadas a este formulário
+  responses   Response[]  // Respostas relacionadas a este formulário
   questions   Question[] // Relacionamento com as perguntas deste formulário
 }
 
@@ -29,7 +29,7 @@ model Question {
   allowImage Boolean  @default(false) // Permitir upload de imagem?
   order      Int // Ordem da pergunta no formulário
   options    Json?
-  form       Form     @relation(fields: [formId], references: [id])
+  form       Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
   answers    Answer[] // Respostas para essa pergunta
 }
 
@@ -41,8 +41,8 @@ model Answer {
   answerImage    String? // Caminho para imagem (para perguntas com imagens)
   answerOption   String? // Resposta selecionada (para múltipla escolha)
   answerLocation String? // Resposta de localização (endereço)
-  question       Question @relation(fields: [questionId], references: [id])
-  response       Response @relation(fields: [responseId], references: [id])
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  response       Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
 }
 
 model Response {
@@ -50,7 +50,7 @@ model Response {
   formId       String // Referência ao formulário
   respondentId String // ID do respondente (se aplicável, como um usuário autenticado)
   submittedAt  DateTime @default(now()) // Quando a resposta foi submetida
-  form         Form     @relation(fields: [formId], references: [id])
+  form         Form     @relation(fields: [formId], references: [id],  onDelete: Cascade)
   answers      Answer[] // Respostas de todas as perguntas desse formulário
 }
 

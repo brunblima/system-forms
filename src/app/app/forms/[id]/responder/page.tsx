@@ -35,7 +35,12 @@ interface FormData {
 }
 
 export default function RespondForm() {
-  const [formData, setFormData] = useState<FormData | null>(null);
+  const [formData, setFormData] = useState<FormData>({
+    id: '',
+    title: '',
+    description: '',
+    questions: [],
+  });
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [imageResponses, setImageResponses] = useState<Record<string, string>>(
     {},
@@ -153,10 +158,8 @@ export default function RespondForm() {
     }
   };
 
-  if (!formData) return <div>Carregando...</div>;
-
   return (
-    <div className="container mx-auto max-w-3xl py-10">
+    <div className="container mx-auto py-10">
       <Card className="border-t-8 border-t-primary mb-6">
         <CardHeader>
           <CardTitle className="text-2xl">{formData.title}</CardTitle>
