@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     if (!session || !session.user?.id) {
       return NextResponse.json(
         { message: "Usuário não autenticado." },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     if (!title || !Array.isArray(questions) || questions.length === 0) {
       return NextResponse.json(
         { message: "Campos obrigatórios faltando." },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -34,11 +34,17 @@ export async function POST(req: Request) {
         questions: {
           create: questions.map((question: any, index: number) => ({
             title: question.title.trim(),
-            type: question.type,
+            type: question.type, // Aceita "imagem" também
             isRequired: question.isRequired || false,
-            allowImage: question.allowImage || false,
+            allowImage:
+              question.type === "imagem" ? true : question.allowImage || false, // Apenas para "imagem"
             order: question.order || index,
-            options: question.options?.length ? question.options : null,
+            options:
+              question.type === "imagem"
+                ? null
+                : question.options?.length
+                ? question.options
+                : null, // Sem opções para "imagem"
           })),
         },
       },
@@ -48,13 +54,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { message: "Formulário criado com sucesso.", id: newForm.id },
-      { status: 201 },
+      { status: 201 }
     );
   } catch (error) {
     console.error("Erro ao criar formulário:", error);
     return NextResponse.json(
       { message: "Erro ao criar formulário.", error: String(error) },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

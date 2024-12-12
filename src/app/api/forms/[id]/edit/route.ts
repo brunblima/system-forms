@@ -23,11 +23,7 @@ export async function PUT(
               title: question.title,
               type: question.type,
               isRequired: question.isRequired,
-              allowImage: question.type === "imagem" ? true : undefined, // Garante que "imagem" tenha o campo correto
-              options:
-                question.type === "imagem"
-                  ? undefined
-                  : { set: question.options || [] }, // Não atualiza opções para "imagem"
+              options: { set: question.options || [] },
             },
           })),
         },

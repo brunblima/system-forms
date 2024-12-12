@@ -34,6 +34,7 @@ import {
 import { format, isSameDay, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ptBR } from 'date-fns/locale'
 
 const mapContainerStyle = {
   width: "100%",
@@ -62,8 +63,8 @@ interface FormResponse {
 
 export default function FormResponsesPage() {
   const [formData, setFormData] = useState<FormData>({
-    id: '',
-    title: '',
+    id: "",
+    title: "",
     questions: [],
   });
   const [responses, setResponses] = useState<FormResponse[]>([]);
@@ -252,10 +253,8 @@ export default function FormResponsesPage() {
     }
   };
 
-  
-
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-5">
       <Card className="border-t-8 border-t-primary mb-6">
         <CardHeader>
           <CardTitle className="text-3xl">
@@ -280,10 +279,10 @@ export default function FormResponsesPage() {
           ))}
         </TabsContent>
         <TabsContent value="individual">
-          <div className="grid grid-cols-3 gap-6">
-            <Card className="col-span-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="col-span-1 md:col-span-1">
               <CardHeader>
-                <CardTitle>Respostas do dia</CardTitle>
+                <CardTitle className="truncate">Respostas do dia</CardTitle>
               </CardHeader>
               <CardContent>
                 <Popover>
@@ -297,26 +296,28 @@ export default function FormResponsesPage() {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {selectedDate ? (
-                        format(selectedDate, "PPP")
+                        format(selectedDate, "d 'de' MMMM 'de' yyyy")
                       ) : (
                         <span>Selecione uma data</span>
                       )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
+                  <Calendar
                       mode="single"
                       selected={selectedDate}
                       onSelect={setSelectedDate}
                       initialFocus
                       modifiers={{
-                        highlighted: responseDates,
+                        highlighted: responseDates
                       }}
                       modifiersStyles={{
-                        highlighted: {
-                          backgroundColor: "#0284c7",
-                          color: "white",
-                        },
+                        highlighted: { backgroundColor: '#0284c7', color: 'white' }
+                      }}
+                      locale={ptBR}
+                      formatters={{
+                        formatCaption: (date, options) => format(date, 'LLLL yyyy', { locale: ptBR }),
+                        formatWeekdayName: (date) => format(date, 'EEEEE', { locale: ptBR }),
                       }}
                     />
                   </PopoverContent>
@@ -353,7 +354,7 @@ export default function FormResponsesPage() {
                 )}
               </CardContent>
             </Card>
-            <Card className="col-span-2">
+            <Card className="col-span-1 md:col-span-2">
               <CardHeader>
                 <CardTitle>Detalhes da Resposta</CardTitle>
               </CardHeader>

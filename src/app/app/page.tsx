@@ -82,12 +82,12 @@ export default function Home() {
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Meus Formulários</h1>
+    <div className="container mx-auto py-5">
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-3xl font-bold truncate">Meus Formulários</h1>
         <Link href="/app/create">
           <Button>
-            <PlusCircle className="h-4 w-4 mr-2" />
+            <PlusCircle className="h-4 w-4" />
             Criar Formulário
           </Button>
         </Link>

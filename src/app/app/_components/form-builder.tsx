@@ -89,7 +89,7 @@ function LocationInput({
         (error) => {
           console.error("Error getting location:", error);
           setIsLoading(false);
-        },
+        }
       );
     } else {
       console.error("Geolocation is not supported by this browser.");
@@ -160,6 +160,56 @@ function FileUploadInput({
   );
 }
 
+function ImageUploadInput({
+  question,
+  updateQuestion,
+}: {
+  question: Question;
+  updateQuestion: (id: string, updates: Partial<Question>) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateQuestion(question.id, { imageUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Upload className="h-4 w-4 mr-2" />
+        Escolher imagem
+      </Button>
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        onChange={handleImageUpload}
+      />
+      {question.imageUrl && (
+        <div className="mt-2">
+          <img
+            src={question.imageUrl}
+            alt="Imagem carregada"
+            className="max-w-full h-auto rounded-md"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SortableQuestion({
   question,
   updateQuestion,
@@ -202,14 +252,14 @@ function SortableQuestion({
       <CardContent className="pt-6 pl-10">
         <div className="space-y-4">
           <div className="flex gap-4">
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               <Input
                 value={question.title}
                 onChange={(e) =>
                   updateQuestion(question.id, { title: e.target.value })
                 }
                 placeholder="Pergunta"
-                className="text-lg"
+                className="text-lg "
               />
             </div>
             <Select
@@ -218,7 +268,7 @@ function SortableQuestion({
                 updateQuestion(question.id, { type: value })
               }
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="max-w-44">
                 <SelectValue placeholder="Tipo de resposta" />
               </SelectTrigger>
               <SelectContent>
@@ -250,6 +300,12 @@ function SortableQuestion({
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
                     <span>Localização</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="image">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Imagem</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="file">
@@ -357,7 +413,14 @@ function SortableQuestion({
             />
           )}
 
-          {question.type !== "file" && (
+          {question.type === "image" && (
+            <ImageUploadInput
+              question={question}
+              updateQuestion={updateQuestion}
+            />
+          )}
+
+          {question.type !== "file" && question.type !== "image" && (
             <div className="flex items-center gap-2">
               <Label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -424,10 +487,10 @@ export default function FormBuilder({
 }) {
   const [formTitle, setFormTitle] = useState(initialData?.title || "");
   const [formDescription, setFormDescription] = useState(
-    initialData?.description || "",
+    initialData?.description || ""
   );
   const [questions, setQuestions] = useState<Question[]>(
-    initialData?.questions || [],
+    initialData?.questions || []
   );
   const { toast } = useToast();
   const router = useRouter();
@@ -436,7 +499,7 @@ export default function FormBuilder({
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    })
   );
 
   const addQuestion = () => {
@@ -452,7 +515,7 @@ export default function FormBuilder({
 
   const updateQuestion = (id: string, updates: Partial<Question>) => {
     setQuestions(
-      questions.map((q) => (q.id === id ? { ...q, ...updates } : q)),
+      questions.map((q) => (q.id === id ? { ...q, ...updates } : q))
     );
   };
 
@@ -496,7 +559,7 @@ export default function FormBuilder({
 
       console.log(
         "Dados enviados ao backend:",
-        JSON.stringify(formData, null, 2),
+        JSON.stringify(formData, null, 2)
       );
 
       const url = initialData?.id
@@ -523,7 +586,9 @@ export default function FormBuilder({
         router.push("/");
       } else {
         throw new Error(
-          `Erro ${response.status}: ${responseData.message || "Erro desconhecido"}`,
+          `Erro ${response.status}: ${
+            responseData.message || "Erro desconhecido"
+          }`
         );
       }
     } catch (error) {
@@ -539,6 +604,10 @@ export default function FormBuilder({
 
   return (
     <div className="container mx-auto max-w-3xl p-6 space-y-6">
+      <h1 className="text-3xl font-bold text-left">
+        {initialData ? "Editar Formulário" : "Criar Novo Formulário"}
+      </h1>
+
       <Card className="border-t-8 border-t-primary">
         <CardContent className="pt-6 space-y-4">
           <Input
