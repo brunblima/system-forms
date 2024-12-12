@@ -3,9 +3,9 @@ import { db } from "@/services/database/db";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Record<string, string> } // Tipo ajustado
 ) {
-  const { id } = params;
+  const { id } = context.params;
 
   if (!id) {
     return NextResponse.json(
@@ -15,9 +15,8 @@ export async function DELETE(
   }
 
   try {
-    // Verifica se o formulário existe antes de tentar deletar
     const formExists = await db.form.findUnique({
-      where: { id: id },
+      where: { id },
     });
 
     if (!formExists) {
@@ -27,9 +26,8 @@ export async function DELETE(
       );
     }
 
-    // Exclui o formulário
     await db.form.delete({
-      where: { id: id },
+      where: { id },
     });
 
     return NextResponse.json(

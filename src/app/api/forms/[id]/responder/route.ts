@@ -7,14 +7,11 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   try {
-    // Autenticação opcional
     const session = await auth();
-    const respondentId = session?.user?.id || "anonymous"; // Define um ID padrão para anônimos
+    const respondentId = session?.user?.id || "anonymous";
 
-    // Obtendo o ID do formulário
     const formId = params.id;
 
-    // Verificando se o formulário existe
     const form = await db.form.findUnique({
       where: { id: formId },
       include: { questions: true },
@@ -23,87 +20,82 @@ export async function POST(
     if (!form) {
       return NextResponse.json(
         { message: "Formulário não encontrado." },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
     const responses = await req.json();
 
-    // Validação das respostas
-    const missingAnswers = form.questions.filter(
-      (question) => question.isRequired && !responses[question.id],
-    );
+    const formattedAnswers = form.questions.map((question) => {
+      const answer = responses[question.id];
+    
+      // Ignorar validação se a pergunta não for obrigatória e estiver vazia
+      if (!question.isRequired && !answer) {
+        return null; // Não criar registro para perguntas não respondidas
+      }
+    
+      const answerData: any = {};
+      switch (question.type) {
+        case "short":
+        case "long":
+          answerData.answerText = typeof answer === "string" ? answer : null;
+          break;
+        case "multiple":
+          answerData.answerOption = typeof answer === "string" ? answer : null;
+          break;
+        case "checkbox":
+          answerData.answerOption = Array.isArray(answer)
+            ? JSON.stringify(answer)
+            : null;
+          break;
+        case "location":
+          if (
+            typeof answer === "object" &&
+            answer.latitude &&
+            answer.longitude
+          ) {
+            answerData.answerLocation = `${answer.latitude},${answer.longitude}`;
+          }
+          break;
+        case "file":
+          answerData.answerImage = typeof answer === "string" ? answer : null;
+          break;
+        default:
+          throw new Error(`Tipo de pergunta não suportado: ${question.type}.`);
+      }
+    
+      // Validar apenas perguntas obrigatórias ou com respostas fornecidas
+      if (
+        question.isRequired &&
+        !answerData.answerText &&
+        !answerData.answerOption &&
+        !answerData.answerImage &&
+        !answerData.answerLocation
+      ) {
+        throw new Error(`Resposta inválida para a pergunta "${question.title}".`);
+      }
+    
+      return { questionId: question.id, ...answerData };
+    }).filter(Boolean); // Remove as perguntas não respondidas
+    
 
-    if (missingAnswers.length > 0) {
-      return NextResponse.json(
-        {
-          message: "Respostas obrigatórias ausentes.",
-          missingQuestions: missingAnswers.map((q) => q.title),
-        },
-        { status: 400 },
-      );
-    }
-
-    // Criando uma nova resposta geral (Response)
     const newResponse = await db.response.create({
       data: {
         formId,
         respondentId,
-        answers: {
-          create: Object.entries(responses).map(([questionId, answer]) => {
-            const question = form.questions.find((q) => q.id === questionId);
-
-            if (!question) {
-              throw new Error(`Pergunta com ID ${questionId} não encontrada.`);
-            }
-
-            // Diferenciando o tipo de resposta com base no tipo da pergunta
-            const answerData: any = {};
-            if (typeof answer === "string") {
-              if (question.type === "short" || question.type === "long") {
-                answerData.answerText = answer;
-              } else if (question.type === "multiple") {
-                answerData.answerOption = answer;
-              }
-            } else if (Array.isArray(answer)) {
-              if (question.type === "checkbox") {
-                answerData.answerOption = JSON.stringify(answer); // Salva múltiplas opções como JSON
-              }
-            } else if (
-              typeof answer === "object" &&
-              answer.latitude &&
-              answer.longitude
-            ) {
-              if (question.type === "location") {
-                answerData.answerLocation = `${answer.latitude}, ${answer.longitude}`;
-              }
-            } else if (question.type === "file" && typeof answer === "string") {
-              answerData.answerImage = answer; // Supondo que o frontend envia o caminho da imagem
-            } else if (question.allowImage && answer?.imageData) {
-              answerData.answerImage = answer.imageData;
-            }
-
-            return {
-              questionId,
-              ...answerData,
-            };
-          }),
-        },
+        answers: { create: formattedAnswers },
       },
     });
 
     return NextResponse.json(
-      {
-        message: "Respostas salvas com sucesso.",
-        responseId: newResponse.id,
-      },
-      { status: 201 },
+      { message: "Respostas salvas com sucesso.", responseId: newResponse.id },
+      { status: 201 }
     );
   } catch (error) {
     console.error("Erro ao salvar respostas:", error);
     return NextResponse.json(
-      { message: "Erro ao salvar respostas.", error: error.message },
-      { status: 500 },
+      { message: "Erro ao salvar respostas." },
+      { status: 500 }
     );
   }
 }

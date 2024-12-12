@@ -34,7 +34,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export default function Home({ userId }: { userId: string }) {
+interface HomeProps {
+  userId: string;
+}
+
+export default function Home() {
   const [forms, setForms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState({
@@ -59,7 +63,7 @@ export default function Home({ userId }: { userId: string }) {
     }
 
     fetchForms();
-  }, [userId]);
+  }, []);
 
   async function handleDeleteForm(id: string) {
     try {
