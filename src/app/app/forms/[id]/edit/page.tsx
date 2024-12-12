@@ -1,45 +1,49 @@
-import { NextResponse } from "next/server";
-import { db } from "@/services/database/db";
+"use client";
 
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const { id } = params;
-    const body = await req.json();
-    const { title, description, questions } = body;
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import FormBuilder from "@/app/app/_components/form-builder";
 
-    // Atualize o formulário no banco de dados
-    const updatedForm = await db.form.update({
-      where: { id },
-      data: {
-        title,
-        description,
-        questions: {
-          update: questions.map((question: any) => ({
-            where: { id: question.id },
-            data: {
-              title: question.title,
-              type: question.type,
-              isRequired: question.isRequired,
-              allowImage: question.type === "imagem" ? true : undefined, // Garante que "imagem" tenha o campo correto
-              options:
-                question.type === "imagem"
-                  ? undefined
-                  : { set: question.options || [] }, // Não atualiza opções para "imagem"
-            },
-          })),
-        },
-      },
-    });
+export default function EditFormPage() {
+  const router = useRouter();
+  const params = useParams(); // Usa o hook para obter o ID
+  const [form, setForm] = useState();
+  const [loading, setLoading] = useState(true);
 
-    return NextResponse.json(updatedForm, { status: 200 });
-  } catch (error) {
-    console.error("Erro ao atualizar o formulário:", error);
-    return NextResponse.json(
-      { message: "Erro ao atualizar o formulário" },
-      { status: 500 }
-    );
-  }
+  useEffect(() => {
+    const fetchForm = async () => {
+      try {
+        const id = params?.id; // Obtenha o ID de params
+        if (!id) {
+          throw new Error("ID do formulário não foi fornecido");
+        }
+
+        const response = await fetch(`/api/getForms/${id}`);
+        if (!response.ok) {
+          throw new Error(
+            `Erro ao carregar formulário: ${response.statusText}`,
+          );
+        }
+
+        const data = await response.json();
+        console.log("Dados do formulário:", data); // Confirma os dados recebidos
+        setForm(data);
+      } catch (error) {
+        console.error("Erro ao buscar formulário:", error);
+        alert("Não foi possível carregar o formulário.");
+        router.push("/app");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchForm();
+  }, [params, router]);
+
+  
+  return (
+    <>
+      <FormBuilder initialData={form} />
+    </>
+  );
 }

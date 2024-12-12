@@ -3,12 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,14 +31,14 @@ interface FormData {
 
 export default function RespondForm() {
   const [formData, setFormData] = useState<FormData>({
-    id: '',
-    title: '',
-    description: '',
+    id: "",
+    title: "",
+    description: "",
     questions: [],
   });
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [imageResponses, setImageResponses] = useState<Record<string, string>>(
-    {},
+    {}
   );
   const params = useParams();
   const router = useRouter();
@@ -77,7 +72,7 @@ export default function RespondForm() {
 
   const handleImageUpload = (
     questionId: string,
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -107,7 +102,7 @@ export default function RespondForm() {
               "Não foi possível obter sua localização. Por favor, verifique as permissões do seu navegador.",
             variant: "destructive",
           });
-        },
+        }
       );
     } else {
       toast({
@@ -127,7 +122,7 @@ export default function RespondForm() {
           Object.entries(imageResponses).map(([key, value]) => [
             key,
             { imageData: value },
-          ]),
+          ])
         ),
       };
 
@@ -228,7 +223,7 @@ export default function RespondForm() {
                             const newValue = checked
                               ? [...currentValue, option]
                               : currentValue.filter(
-                                  (v: string) => v !== option,
+                                  (v: string) => v !== option
                                 );
                             handleInputChange(question.id, newValue);
                           }}
@@ -246,7 +241,9 @@ export default function RespondForm() {
                       type="text"
                       value={
                         responses[question.id]
-                          ? `${responses[question.id].latitude}, ${responses[question.id].longitude}`
+                          ? `${responses[question.id].latitude}, ${
+                              responses[question.id].longitude
+                            }`
                           : ""
                       }
                       readOnly
@@ -279,7 +276,8 @@ export default function RespondForm() {
                     )}
                   </div>
                 )}
-                {question.allowImage && (
+
+                {question.type === "image" && (
                   <div className="space-y-2">
                     <div className="flex gap-2">
                       <Button
@@ -291,10 +289,6 @@ export default function RespondForm() {
                         <Upload className="h-4 w-4 mr-2" />
                         Carregar imagem
                       </Button>
-                      <Button type="button" variant="outline" size="sm">
-                        <Camera className="h-4 w-4 mr-2" />
-                        Tirar foto
-                      </Button>
                     </div>
                     <input
                       type="file"
@@ -302,12 +296,13 @@ export default function RespondForm() {
                       className="hidden"
                       accept="image/*"
                       onChange={(e) => handleImageUpload(question.id, e)}
+                      required={question.isRequired}
                     />
                     {imageResponses[question.id] && (
                       <div className="mt-2">
-                        <Image
+                        <img
                           src={imageResponses[question.id]}
-                          alt="Uploaded"
+                          alt="Imagem carregada"
                           className="max-w-full h-auto rounded-md"
                         />
                       </div>
