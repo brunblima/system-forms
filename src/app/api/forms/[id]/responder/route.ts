@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/services/database/db";
 import { auth } from "@/services/auth/auth";
+import cloudinary from "@/services/cloudinary/config";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
     const respondentId = session?.user?.id || "anonymous";
-
     const formId = params.id;
 
+    // Buscar formulário e perguntas relacionadas
     const form = await db.form.findUnique({
       where: { id: formId },
       include: { questions: true },
@@ -26,64 +27,61 @@ export async function POST(
 
     const responses = await req.json();
 
-    const formattedAnswers = form.questions.map((question) => {
-      const answer = responses[question.id];
+    // Processar respostas
+    const formattedAnswers = await Promise.all(
+      form.questions.map(async (question) => {
+        const response = responses[question.id];
+        if (!response) return null;
     
-      // Ignorar validação se a pergunta não for obrigatória e estiver vazia
-      if (!question.isRequired && !answer) {
-        return null; // Não criar registro para perguntas não respondidas
-      }
+        const { text, image } = response;
+        const answerData: any = {};
     
-      const answerData: any = {};
-      switch (question.type) {
-        case "short":
-        case "long":
-          answerData.answerText = typeof answer === "string" ? answer : null;
-          break;
-        case "multiple":
-          answerData.answerOption = typeof answer === "string" ? answer : null;
-          break;
-        case "checkbox":
-          answerData.answerOption = Array.isArray(answer)
-            ? JSON.stringify(answer)
-            : null;
-          break;
-        case "location":
-          if (
-            typeof answer === "object" &&
-            answer.latitude &&
-            answer.longitude
-          ) {
-            answerData.answerLocation = `${answer.latitude},${answer.longitude}`;
+        // Upload da imagem, se aplicável
+        if (image) {
+          try {
+            const uploadResult = await cloudinary.uploader.upload(image, {
+              folder: "form_uploads",
+            });
+            answerData.answerImage = uploadResult.secure_url;
+          } catch (error) {
+            console.error(`Erro ao fazer upload da imagem: ${error.message}`);
+            throw new Error(`Falha ao processar a imagem para a pergunta "${question.title}".`);
           }
-          break;
-        case "file":
-          answerData.answerImage = typeof answer === "string" ? answer : null;
-          break;
-        default:
-          throw new Error(`Tipo de pergunta não suportado: ${question.type}.`);
-      }
+        }
     
-      // Validar apenas perguntas obrigatórias ou com respostas fornecidas
-      if (
-        question.isRequired &&
-        !answerData.answerText &&
-        !answerData.answerOption &&
-        !answerData.answerImage &&
-        !answerData.answerLocation
-      ) {
-        throw new Error(`Resposta inválida para a pergunta "${question.title}".`);
-      }
+        // Adicionar texto, se aplicável
+        if (text) {
+          answerData.answerText = text;
+        }
     
-      return { questionId: question.id, ...answerData };
-    }).filter(Boolean); // Remove as perguntas não respondidas
+        // Verificar tipos específicos de perguntas
+        switch (question.type) {
+          case "image":
+            if (!answerData.answerImage) {
+              throw new Error(`Uma imagem é necessária para a pergunta "${question.title}".`);
+            }
+            break;
+    
+          default:
+            if (!answerData.answerText && !answerData.answerImage) {
+              if (question.type === "image" && !answerData.answerImage) {
+                throw new Error(`Uma imagem é necessária para a pergunta "${question.title}".`);
+              }
+            }
+            break;
+        }
+    
+        return { questionId: question.id, ...answerData };
+      })
+    );
     
 
+    // Criar nova resposta no banco
     const newResponse = await db.response.create({
       data: {
         formId,
         respondentId,
-        answers: { create: formattedAnswers },
+        answers: { create: formattedAnswers.filter(Boolean) },
       },
     });
 
@@ -94,7 +92,7 @@ export async function POST(
   } catch (error) {
     console.error("Erro ao salvar respostas:", error);
     return NextResponse.json(
-      { message: "Erro ao salvar respostas." },
+      { message: error.message || "Erro ao salvar respostas." },
       { status: 500 }
     );
   }

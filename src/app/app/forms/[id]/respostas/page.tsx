@@ -34,7 +34,7 @@ import {
 import { format, isSameDay, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ptBR } from 'date-fns/locale'
+import { ptBR } from "date-fns/locale";
 
 const mapContainerStyle = {
   width: "100%",
@@ -52,6 +52,7 @@ interface FormData {
     id: string;
     title: string;
     type: string;
+    ImageAnswer?: boolean;
   }[];
 }
 
@@ -248,6 +249,26 @@ export default function FormResponsesPage() {
             </TableBody>
           </Table>
         );
+      case "image":
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {responseArray.map((response, index) => {
+              const imageUrl = typeof response === "string" ? response : null;
+              return imageUrl ? (
+                <img
+                  key={index}
+                  src={imageUrl}
+                  alt={`Imagem ${index + 1}`}
+                  className="w-full h-auto rounded-md"
+                />
+              ) : (
+                <p key={index} className="text-muted-foreground">
+                  Imagem inválida
+                </p>
+              );
+            })}
+          </div>
+        );
       default:
         return <p>Tipo de pergunta não suportado</p>;
     }
@@ -303,21 +324,26 @@ export default function FormResponsesPage() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
+                    <Calendar
                       mode="single"
                       selected={selectedDate}
                       onSelect={setSelectedDate}
                       initialFocus
                       modifiers={{
-                        highlighted: responseDates
+                        highlighted: responseDates,
                       }}
                       modifiersStyles={{
-                        highlighted: { backgroundColor: '#0284c7', color: 'white' }
+                        highlighted: {
+                          backgroundColor: "#0284c7",
+                          color: "white",
+                        },
                       }}
                       locale={ptBR}
                       formatters={{
-                        formatCaption: (date, options) => format(date, 'LLLL yyyy', { locale: ptBR }),
-                        formatWeekdayName: (date) => format(date, 'EEEEE', { locale: ptBR }),
+                        formatCaption: (date, options) =>
+                          format(date, "LLLL yyyy", { locale: ptBR }),
+                        formatWeekdayName: (date) =>
+                          format(date, "EEEEE", { locale: ptBR }),
                       }}
                     />
                   </PopoverContent>

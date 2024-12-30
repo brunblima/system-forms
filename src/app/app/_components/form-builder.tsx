@@ -420,7 +420,7 @@ function SortableQuestion({
             />
           )}
 
-          {question.type !== "file" && question.type !== "image" && (
+          {question.type !== "file" && question.type !== "image" && question.type !== "multiple" && question.type !== "checkbox" && (
             <div className="flex items-center gap-2">
               <Label className="flex items-center gap-2 cursor-pointer">
                 <input

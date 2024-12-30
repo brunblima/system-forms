@@ -10,8 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Upload, Camera } from "lucide-react";
-import Image from "next/image";
+import { MapPin, Upload, Camera, XCircle } from "lucide-react";
 
 interface Question {
   id: string;
@@ -75,6 +74,7 @@ export default function RespondForm() {
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
+    console.log("Arquivo selecionado:", file);
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -113,41 +113,42 @@ export default function RespondForm() {
     }
   };
 
+  const removeImage = (questionId: string) => {
+    setImageResponses((prev) => {
+      const updated = { ...prev };
+      delete updated[questionId];
+      return updated;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const formattedResponses = {
-        ...responses,
-        ...Object.fromEntries(
-          Object.entries(imageResponses).map(([key, value]) => [
-            key,
-            { imageData: value },
-          ])
-        ),
-      };
+      const responsePayload = formData.questions.reduce((acc, question) => {
+        acc[question.id] = {
+          text: responses[question.id] || null,
+          image: imageResponses[question.id] || null,
+        };
+        return acc;
+      }, {} as Record<string, { text: string | null; image: string | null }>);
 
       const res = await fetch(`/api/forms/${params.id}/responder`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formattedResponses),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(responsePayload),
       });
 
-      if (!res.ok) throw new Error("Failed to submit form");
+      if (!res.ok) throw new Error("Erro ao enviar o formulário.");
 
       toast({
         title: "Resposta enviada com sucesso!",
         description: "Obrigado por responder ao formulário.",
       });
-
-      router.push("/");
-    } catch (error) {
-      console.error("Error submitting form:", error);
+      router.push("/app");
+    } catch {
       toast({
         title: "Erro ao enviar resposta",
-        description:
-          "Ocorreu um erro ao enviar sua resposta. Por favor, tente novamente.",
+        description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -174,17 +175,8 @@ export default function RespondForm() {
                     <span className="text-red-500 ml-1">*</span>
                   )}
                 </Label>
-                {question.type === "short" && (
+                {(question.type === "short" || question.type === "long") && (
                   <Input
-                    id={question.id}
-                    required={question.isRequired}
-                    onChange={(e) =>
-                      handleInputChange(question.id, e.target.value)
-                    }
-                  />
-                )}
-                {question.type === "long" && (
-                  <Textarea
                     id={question.id}
                     required={question.isRequired}
                     onChange={(e) =>
@@ -235,6 +227,57 @@ export default function RespondForm() {
                     ))}
                   </div>
                 )}
+                {question.allowImage && (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          document
+                            .getElementById(`image-${question.id}`)
+                            ?.click()
+                        }
+                      >
+                        <Upload className="h-4 w-4 mr-2" /> Carregar imagem
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          console.log("Abrir câmera (não implementado)")
+                        }
+                      >
+                        <Camera className="h-4 w-4 mr-2" /> Tirar foto
+                      </Button>
+                    </div>
+                    <input
+                      type="file"
+                      id={`image-${question.id}`}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(question.id, e)}
+                    />
+                    {imageResponses[question.id] && (
+                      <div className="relative mt-2 w-24 h-24">
+                        <img
+                          src={imageResponses[question.id]}
+                          alt="Imagem carregada"
+                          className="w-full h-full object-cover rounded-md"
+                        />
+                        <button
+                          type="button"
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+                          onClick={() => removeImage(question.id)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {question.type === "location" && (
                   <div className="flex items-center space-x-2">
                     <Input
@@ -264,6 +307,7 @@ export default function RespondForm() {
                     <Input
                       type="file"
                       id={question.id}
+                      accept="*/*"
                       required={question.isRequired}
                       onChange={(e) =>
                         handleInputChange(question.id, e.target.files?.[0])
@@ -276,7 +320,6 @@ export default function RespondForm() {
                     )}
                   </div>
                 )}
-
                 {question.type === "image" && (
                   <div className="space-y-2">
                     <div className="flex gap-2">
@@ -284,27 +327,46 @@ export default function RespondForm() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() =>
+                          document
+                            .getElementById(`image-${question.id}`)
+                            ?.click()
+                        }
                       >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Carregar imagem
+                        <Upload className="h-4 w-4 mr-2" /> Carregar imagem
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          console.log("Abrir câmera (não implementado)")
+                        }
+                      >
+                        <Camera className="h-4 w-4 mr-2" /> Tirar foto
                       </Button>
                     </div>
                     <input
                       type="file"
-                      ref={fileInputRef}
+                      id={`image-${question.id}`}
                       className="hidden"
                       accept="image/*"
                       onChange={(e) => handleImageUpload(question.id, e)}
-                      required={question.isRequired}
                     />
                     {imageResponses[question.id] && (
-                      <div className="mt-2">
+                      <div className="relative mt-2 w-24 h-24">
                         <img
                           src={imageResponses[question.id]}
                           alt="Imagem carregada"
-                          className="max-w-full h-auto rounded-md"
+                          className="w-full h-full object-cover rounded-md"
                         />
+                        <button
+                          type="button"
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+                          onClick={() => removeImage(question.id)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
                       </div>
                     )}
                   </div>
