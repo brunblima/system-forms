@@ -1,7 +1,6 @@
-// Frontend: src/app/app/forms/[id]/respostas/page.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Key } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -52,7 +51,9 @@ interface FormData {
     id: string;
     title: string;
     type: string;
-    ImageAnswer?: boolean;
+    allowImage: boolean;
+    isRequired: boolean;
+    options?: Record<string, any>;
   }[];
 }
 
@@ -71,7 +72,6 @@ export default function FormResponsesPage() {
   const [responses, setResponses] = useState<FormResponse[]>([]);
   const { toast } = useToast();
   const params = useParams();
-  const [mapError, setMapError] = useState<string | null>(null);
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
@@ -97,11 +97,7 @@ export default function FormResponsesPage() {
         }
 
         const data = await response.json();
-        setFormData({
-          id: data.id,
-          title: data.title,
-          questions: data.questions,
-        });
+        setFormData(data);
         setResponses(data.responses);
       } catch (error) {
         console.error("Erro ao buscar os dados do formulário:", error);
@@ -128,12 +124,12 @@ export default function FormResponsesPage() {
   }, [responses, selectedDate]);
 
   const renderResponses = (
-    question: { id: string; title: string; type: string },
+    question: { id: string; title: string; type: string; allowImage: boolean },
     responseData?: FormResponse
   ) => {
     const responseArray = responseData
-      ? [responseData[question.id]]
-      : responses.map((r) => r[question.id]);
+      ? responseData[question.id] || []
+      : responses.map((r) => r[question.id] || []).flat();
 
     switch (question.type) {
       case "short":
@@ -143,17 +139,42 @@ export default function FormResponsesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Resposta</TableHead>
+                {question.allowImage && <TableHead>Imagem</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {responseArray.map((response, index) => (
-                <TableRow key={index}>
-                  <TableCell>{response || "Sem resposta"}</TableCell>
-                </TableRow>
-              ))}
+              {responseArray.map((answer: any, index: number) => {
+                // Caso seja string, use diretamente como texto
+                const text =
+                  typeof answer === "string"
+                    ? answer
+                    : answer.text || "Sem texto";
+                const image = typeof answer === "object" && answer.image;
+
+                return (
+                  <TableRow key={index}>
+                    <TableCell>{text}</TableCell>
+                    <TableCell>
+                      {image ? (
+                        <a
+                          href={image}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline"
+                        >
+                          Ver Imagem
+                        </a>
+                      ) : (
+                        ""
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         );
+
       case "multiple":
       case "checkbox":
         const data = responseArray.reduce((acc: any, curr: string) => {
@@ -180,12 +201,22 @@ export default function FormResponsesPage() {
         );
       case "location":
         const locations = responseArray
-          .map((response) => {
-            if (!response) return null;
-            const [lat, lng] = response.split(",").map(Number);
-            return isNaN(lat) || isNaN(lng) ? null : { lat, lng };
-          })
-          .filter((loc): loc is { lat: number; lng: number } => loc !== null);
+          .map(
+            (response: {
+              split: (arg0: string) => {
+                (): any;
+                new (): any;
+                map: { (arg0: NumberConstructor): [any, any]; new (): any };
+              };
+            }) => {
+              if (!response) return null;
+              const [lat, lng] = response.split(",").map(Number);
+              return isNaN(lat) || isNaN(lng) ? null : { lat, lng };
+            }
+          )
+          .filter(
+            (loc: unknown): loc is { lat: number; lng: number } => loc !== null
+          );
 
         if (locations.length === 0)
           return <p>Nenhuma localização registrada</p>;
@@ -216,9 +247,14 @@ export default function FormResponsesPage() {
                   zoomControl: true,
                 }}
               >
-                {locations.map((location, index) => (
-                  <Marker key={index} position={location} />
-                ))}
+                {locations.map(
+                  (
+                    location: google.maps.LatLng | google.maps.LatLngLiteral,
+                    index: Key | null | undefined
+                  ) => (
+                    <Marker key={index} position={location} />
+                  )
+                )}
               </GoogleMap>
             )}
           </MapWrapper>
@@ -232,43 +268,64 @@ export default function FormResponsesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {responseArray.map((response, index) => (
-                <TableRow key={index}>
-                  <TableCell>
-                    <a
-                      href={response}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
-                    >
-                      Ver arquivo {index + 1}
-                    </a>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {responseArray.map(
+                (
+                  response: string | undefined,
+                  index: Key | null | undefined
+                ) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      <a
+                        href={response}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        Ver arquivo {(index as number) + 1}
+                      </a>
+                    </TableCell>
+                  </TableRow>
+                )
+              )}
             </TableBody>
           </Table>
         );
       case "image":
         return (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {responseArray.map((response, index) => {
-              const imageUrl = typeof response === "string" ? response : null;
-              return imageUrl ? (
-                <img
-                  key={index}
-                  src={imageUrl}
-                  alt={`Imagem ${index + 1}`}
-                  className="w-full h-auto rounded-md"
-                />
-              ) : (
-                <p key={index} className="text-muted-foreground">
-                  Imagem inválida
-                </p>
-              );
-            })}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Resposta</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {responseArray.map(
+                (
+                  answer: { image: string | undefined },
+                  index: Key | null | undefined
+                ) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      {answer.image ? (
+                        <a
+                          href={answer.image}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline"
+                        >
+                          Ver Imagem
+                        </a>
+                      ) : (
+                        "Sem imagem"
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              )}
+            </TableBody>
+          </Table>
         );
+
       default:
         return <p>Tipo de pergunta não suportado</p>;
     }

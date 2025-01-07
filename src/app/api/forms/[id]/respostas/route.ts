@@ -11,7 +11,7 @@ export async function GET(
     const form = await db.form.findUnique({
       where: { id },
       include: {
-        questions: true, 
+        questions: true,
         responses: {
           include: {
             answers: true,
@@ -33,21 +33,68 @@ export async function GET(
         date: response.submittedAt.toISOString(),
       };
 
-      response.answers.forEach((answer) => {
-        if (answer.answerText)
-          responseData[answer.questionId] = answer.answerText;
-        if (answer.answerImage)
-          responseData[answer.questionId] = answer.answerImage;
-        if (answer.answerOption)
-          responseData[answer.questionId] = answer.answerOption;
-        if (answer.answerLocation)
-          responseData[answer.questionId] = answer.answerLocation;
+      form.questions.forEach((question) => {
+        const answer = response.answers.find(
+          (a) => a.questionId === question.id
+        );
+
+        if (!answer) {
+          // Caso nenhuma resposta tenha sido fornecida
+          responseData[question.id] = "Não respondido";
+          return;
+        }
+
+        // Tratamento para perguntas do tipo "image"
+        if (question.type === "image") {
+          if (answer.answerImage) {
+            responseData[question.id] = {
+              image: answer.answerImage,
+            };
+          } else {
+            responseData[question.id] = "Não foi respondido com uma imagem";
+          }
+        }
+
+        // Tratamento para perguntas "long" ou "short" com allowImage
+        else if (["long", "short"].includes(question.type)) {
+          const textResponse =
+            answer.answerText || "Não foi respondido com texto";
+
+          if (question.allowImage) {
+            const imageResponse =
+              answer.answerImage || "Não foi respondido a imagem";
+            responseData[question.id] = {
+              text: textResponse,
+              image: imageResponse,
+            };
+          } else {
+            responseData[question.id] = textResponse;
+          }
+        }
+
+        // Tratamento para perguntas "localização"
+        else if (question.type === "location" && question.allowImage) {
+          responseData[question.id] = {
+            text: answer.answerText || "Não foi respondido com texto",
+            image: answer.answerImage || "Não foi respondido a imagem",
+          };
+        }
+
+        // Tratamento para outros tipos de perguntas
+        else {
+          if (answer.answerText) {
+            responseData[question.id] = answer.answerText;
+          } else if (answer.answerOption) {
+            responseData[question.id] = answer.answerOption;
+          } else {
+            responseData[question.id] = "não respondido";
+          }
+        }
       });
 
       return responseData;
     });
 
-    // Estrutura final dos dados retornados
     const responseData = {
       id: form.id,
       title: form.title,
@@ -55,6 +102,9 @@ export async function GET(
         id: q.id,
         title: q.title,
         type: q.type,
+        allowImage: q.allowImage,
+        isRequired: q.isRequired,
+        options: q.options,
       })),
       responses: mappedResponses,
     };

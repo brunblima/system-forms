@@ -44,7 +44,7 @@ export async function POST(
             });
             answerData.answerImage = uploadResult.secure_url;
           } catch (error) {
-            console.error(`Erro ao fazer upload da imagem: ${error.message}`);
+            console.error(`Erro ao fazer upload da imagem`);
             throw new Error(`Falha ao processar a imagem para a pergunta "${question.title}".`);
           }
         }
@@ -92,7 +92,7 @@ export async function POST(
   } catch (error) {
     console.error("Erro ao salvar respostas:", error);
     return NextResponse.json(
-      { message: error.message || "Erro ao salvar respostas." },
+      { message: "Erro ao salvar respostas." },
       { status: 500 }
     );
   }
