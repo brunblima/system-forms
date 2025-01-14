@@ -116,21 +116,39 @@ export default function FormResponsesPage() {
     return responses.map((response) => parseISO(response.date));
   }, [responses]);
 
+  const getFirstResponseName = (responses: FormResponse[]): string => {
+    if (responses.length === 0) return "Sem nome";
+  
+    // Pega a primeira resposta
+    const firstResponse = responses[0];
+    const firstKey = Object.keys(firstResponse).find((key) => key !== "date" && key !== "id");
+  
+    if (firstKey && firstResponse[firstKey]?.text) {
+      return firstResponse[firstKey].text;
+    }
+  
+    return "Sem nome";
+  };
+
   const filteredResponses = useMemo(() => {
     if (!selectedDate) return [];
-    return responses.filter((response) =>
-      isSameDay(parseISO(response.date), selectedDate)
-    );
+    return responses.filter((response) => {
+      return isSameDay(parseISO(response.date), selectedDate);
+    });
   }, [responses, selectedDate]);
+
+  const firstResponderName = useMemo(() => getFirstResponseName(filteredResponses), [filteredResponses]);
 
   const renderResponses = (
     question: { id: string; title: string; type: string; allowImage: boolean },
     responseData?: FormResponse
   ) => {
-    const responseArray = responseData
-      ? responseData[question.id] || []
+    const responseArray = Array.isArray(responseData?.[question.id])
+      ? responseData?.[question.id]
+      : responseData?.[question.id]
+      ? [responseData[question.id]]
       : responses.map((r) => r[question.id] || []).flat();
-
+      
     switch (question.type) {
       case "short":
       case "long":
@@ -144,12 +162,8 @@ export default function FormResponsesPage() {
             </TableHeader>
             <TableBody>
               {responseArray.map((answer: any, index: number) => {
-                // Caso seja string, use diretamente como texto
-                const text =
-                  typeof answer === "string"
-                    ? answer
-                    : answer.text || "Sem texto";
-                const image = typeof answer === "object" && answer.image;
+                const { text = "Sem texto", image } =
+                  typeof answer === "object" ? answer : { text: answer };
 
                 return (
                   <TableRow key={index}>
@@ -164,9 +178,7 @@ export default function FormResponsesPage() {
                         >
                           Ver Imagem
                         </a>
-                      ) : (
-                        ""
-                      )}
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 );
@@ -174,7 +186,6 @@ export default function FormResponsesPage() {
             </TableBody>
           </Table>
         );
-
       case "multiple":
       case "checkbox":
         const data = responseArray.reduce((acc: any, curr: string) => {
@@ -201,22 +212,29 @@ export default function FormResponsesPage() {
         );
       case "location":
         const locations = responseArray
-          .map(
-            (response: {
-              split: (arg0: string) => {
-                (): any;
-                new (): any;
-                map: { (arg0: NumberConstructor): [any, any]; new (): any };
-              };
-            }) => {
-              if (!response) return null;
-              const [lat, lng] = response.split(",").map(Number);
-              return isNaN(lat) || isNaN(lng) ? null : { lat, lng };
+          .map((response: { location: string }) => {
+            if (!response || !response.location) return null; // Verifica se `response` e `location` são válidos
+            try {
+              const parsed = JSON.parse(response.location); // Faz o parse da string JSON
+              if (
+                typeof parsed.latitude === "number" &&
+                typeof parsed.longitude === "number"
+              ) {
+                return { lat: parsed.latitude, lng: parsed.longitude };
+              }
+              return null; // Retorna `null` se os valores não forem válidos
+            } catch (error) {
+              console.error(
+                "Erro ao parsear localização:",
+                error,
+                response.location
+              );
+              return null; // Retorna `null` se o JSON for inválido
             }
-          )
+          })
           .filter(
             (loc: unknown): loc is { lat: number; lng: number } => loc !== null
-          );
+          ); // Filtra valores nulos
 
         if (locations.length === 0)
           return <p>Nenhuma localização registrada</p>;
@@ -346,7 +364,7 @@ export default function FormResponsesPage() {
           <TabsTrigger value="all">Todas as Respostas</TabsTrigger>
           <TabsTrigger value="individual">Respostas Individuais</TabsTrigger>
         </TabsList>
-        <TabsContent value="all">
+        <TabsContent value="all" className="pt-5">
           {formData.questions.map((question) => (
             <Card key={question.id} className="mb-6">
               <CardHeader>
@@ -356,7 +374,7 @@ export default function FormResponsesPage() {
             </Card>
           ))}
         </TabsContent>
-        <TabsContent value="individual">
+        <TabsContent value="individual" className="pt-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="col-span-1 md:col-span-1">
               <CardHeader>
@@ -374,7 +392,9 @@ export default function FormResponsesPage() {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {selectedDate ? (
-                        format(selectedDate, "d 'de' MMMM 'de' yyyy")
+                        format(selectedDate, "d 'de' MMMM 'de' yyyy", {
+                          locale: ptBR,
+                        })
                       ) : (
                         <span>Selecione uma data</span>
                       )}
@@ -397,7 +417,7 @@ export default function FormResponsesPage() {
                       }}
                       locale={ptBR}
                       formatters={{
-                        formatCaption: (date, options) =>
+                        formatCaption: (date) =>
                           format(date, "LLLL yyyy", { locale: ptBR }),
                         formatWeekdayName: (date) =>
                           format(date, "EEEEE", { locale: ptBR }),
@@ -421,7 +441,9 @@ export default function FormResponsesPage() {
                             <TableCell>
                               {format(parseISO(response.date), "HH:mm")}
                             </TableCell>
-                            <TableCell>{response.q1 || "N/A"}</TableCell>
+                            <TableCell>
+        {response.id === filteredResponses[0]?.id ? firstResponderName : "N/A"}
+      </TableCell>
                             <TableCell>
                               <Button
                                 onClick={() => setSelectedResponse(response)}

@@ -217,7 +217,7 @@ export default function Home() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => handleDeleteForm(deleteDialog.formId)} // Correção aqui
+              onClick={() => handleDeleteForm(deleteDialog.formId)} 
             >
               Excluir
             </Button>

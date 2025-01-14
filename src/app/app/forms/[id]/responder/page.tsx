@@ -125,27 +125,30 @@ export default function RespondForm() {
     e.preventDefault();
     try {
       const responsePayload = formData.questions.reduce((acc, question) => {
+        const response = responses[question.id];
         acc[question.id] = {
-          text: responses[question.id] || null,
+          text: typeof response === "string" ? response : null,
           image: imageResponses[question.id] || null,
+          latitude: response?.latitude || null,
+          longitude: response?.longitude || null,
         };
         return acc;
-      }, {} as Record<string, { text: string | null; image: string | null }>);
-
+      }, {} as Record<string, any>);
+  
       const res = await fetch(`/api/forms/${params.id}/responder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(responsePayload),
       });
-
+  
       if (!res.ok) throw new Error("Erro ao enviar o formulário.");
-
+  
       toast({
         title: "Resposta enviada com sucesso!",
         description: "Obrigado por responder ao formulário.",
       });
       router.push("/app");
-    } catch {
+    } catch (error) {
       toast({
         title: "Erro ao enviar resposta",
         description: "Ocorreu um erro. Tente novamente.",

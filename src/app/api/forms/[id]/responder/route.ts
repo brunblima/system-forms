@@ -1,6 +1,6 @@
+// API para salvar respostas no banco de dados
 import { NextResponse } from "next/server";
 import { db } from "@/services/database/db";
-import { auth } from "@/services/auth/auth";
 import cloudinary from "@/services/cloudinary/config";
 
 export async function POST(
@@ -8,8 +8,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await auth();
-    const respondentId = session?.user?.id || "anonymous";
+    // Obter ID do formulário
     const formId = params.id;
 
     // Buscar formulário e perguntas relacionadas
@@ -32,55 +31,72 @@ export async function POST(
       form.questions.map(async (question) => {
         const response = responses[question.id];
         if (!response) return null;
-    
-        const { text, image } = response;
+
+        const { text, image, latitude, longitude } = response;
         const answerData: any = {};
-    
+
         // Upload da imagem, se aplicável
-        if (image) {
+        if (image && question.allowImage) {
           try {
             const uploadResult = await cloudinary.uploader.upload(image, {
               folder: "form_uploads",
             });
             answerData.answerImage = uploadResult.secure_url;
           } catch (error) {
-            console.error(`Erro ao fazer upload da imagem`);
-            throw new Error(`Falha ao processar a imagem para a pergunta "${question.title}".`);
+            console.error(`Erro ao fazer upload da imagem:`, error);
+            throw new Error(
+              `Falha ao processar a imagem para a pergunta "${question.title}".`
+            );
           }
         }
-    
-        // Adicionar texto, se aplicável
-        if (text) {
+
+        // Adicionar texto ou localização, se aplicável
+        if (typeof text === "string") {
           answerData.answerText = text;
+        } else if (latitude !== undefined && longitude !== undefined) {
+          answerData.answerLocation = JSON.stringify({ latitude, longitude });
         }
-    
+
         // Verificar tipos específicos de perguntas
         switch (question.type) {
-          case "image":
-            if (!answerData.answerImage) {
-              throw new Error(`Uma imagem é necessária para a pergunta "${question.title}".`);
+          case "location":
+            if (!answerData.answerLocation) {
+              throw new Error(
+                `Uma localização válida é necessária para a pergunta "${question.title}".`
+              );
             }
             break;
-    
+
+          case "image":
+            if (!answerData.answerImage) {
+              throw new Error(
+                `Uma imagem é necessária para a pergunta "${question.title}".`
+              );
+            }
+            break;
+
           default:
-            if (!answerData.answerText && !answerData.answerImage) {
-              if (question.type === "image" && !answerData.answerImage) {
-                throw new Error(`Uma imagem é necessária para a pergunta "${question.title}".`);
-              }
+            if (
+              !answerData.answerText &&
+              !answerData.answerImage &&
+              !answerData.answerLocation
+            ) {
+              throw new Error(
+                `Uma resposta válida é necessária para "${question.title}".`
+              );
             }
             break;
         }
-    
+
         return { questionId: question.id, ...answerData };
       })
     );
-    
 
     // Criar nova resposta no banco
     const newResponse = await db.response.create({
       data: {
         formId,
-        respondentId,
+        respondentId: "anonymous", // Usuário não autenticado
         answers: { create: formattedAnswers.filter(Boolean) },
       },
     });

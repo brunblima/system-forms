@@ -1,3 +1,4 @@
+// API para retornar respostas do banco de dados
 import { NextResponse } from "next/server";
 import { db } from "@/services/database/db";
 
@@ -39,56 +40,24 @@ export async function GET(
         );
 
         if (!answer) {
-          // Caso nenhuma resposta tenha sido fornecida
           responseData[question.id] = "Não respondido";
           return;
         }
 
-        // Tratamento para perguntas do tipo "image"
         if (question.type === "image") {
-          if (answer.answerImage) {
-            responseData[question.id] = {
-              image: answer.answerImage,
-            };
-          } else {
-            responseData[question.id] = "Não foi respondido com uma imagem";
-          }
-        }
-
-        // Tratamento para perguntas "long" ou "short" com allowImage
-        else if (["long", "short"].includes(question.type)) {
-          const textResponse =
-            answer.answerText || "Não foi respondido com texto";
-
-          if (question.allowImage) {
-            const imageResponse =
-              answer.answerImage || "Não foi respondido a imagem";
-            responseData[question.id] = {
-              text: textResponse,
-              image: imageResponse,
-            };
-          } else {
-            responseData[question.id] = textResponse;
-          }
-        }
-
-        // Tratamento para perguntas "localização"
-        else if (question.type === "location" && question.allowImage) {
+          responseData[question.id] = answer.answerImage || "Não respondido";
+        } else if (question.type === "location") {
           responseData[question.id] = {
-            text: answer.answerText || "Não foi respondido com texto",
-            image: answer.answerImage || "Não foi respondido a imagem",
+            location: answer.answerLocation || "Não foi respondido com localização",
+            image: answer.answerImage || "Não foi respondido com imagem",
           };
-        }
-
-        // Tratamento para outros tipos de perguntas
-        else {
-          if (answer.answerText) {
-            responseData[question.id] = answer.answerText;
-          } else if (answer.answerOption) {
-            responseData[question.id] = answer.answerOption;
-          } else {
-            responseData[question.id] = "não respondido";
-          }
+        } else {
+          responseData[question.id] = {
+            text: answer.answerText || "Não respondido com texto",
+            image: question.allowImage
+              ? answer.answerImage || "Não foi respondido com imagem"
+              : undefined,
+          };
         }
       });
 
