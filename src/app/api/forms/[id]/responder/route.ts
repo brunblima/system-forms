@@ -1,4 +1,3 @@
-// API para salvar respostas no banco de dados
 import { NextResponse } from "next/server";
 import { db } from "@/services/database/db";
 import cloudinary from "@/services/cloudinary/config";
@@ -8,7 +7,6 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Obter ID do formulário
     const formId = params.id;
 
     // Buscar formulário e perguntas relacionadas
@@ -35,6 +33,11 @@ export async function POST(
         const { text, image, latitude, longitude } = response;
         const answerData: any = {};
 
+        if (question.type === "checkbox" || question.type === "multiple") {
+          answerData.answerText = text; // String com valores separados por vírgula
+        } else if (typeof text === "string") {
+          answerData.answerText = text;
+        }
         // Upload da imagem, se aplicável
         if (image && question.allowImage) {
           try {

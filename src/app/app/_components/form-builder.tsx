@@ -55,7 +55,7 @@ interface Question {
   options?: string[];
   allowImage?: boolean;
   imageUrl?: string;
-  location?: string; // Agora é um endereço de localização
+  location?: string;
   fileUrl?: string;
 }
 
@@ -325,7 +325,6 @@ function SortableQuestion({
             </Button>
           </div>
 
-          {/* Adicionei aqui o checkbox de obrigatoriedade */}
           <div className="flex items-center gap-2">
             <Label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -354,7 +353,7 @@ function SortableQuestion({
             <div className="space-y-2">
               {question.options?.map((option, index) => (
                 <div key={index} className="flex items-center gap-2">
-                  {question.type === "multiple" ? (
+                  {question.type === "checkbox" ? (
                     <div className="h-4 w-4 rounded-full border border-gray-300" />
                   ) : (
                     <div className="h-4 w-4 rounded border border-gray-300" />
@@ -420,24 +419,27 @@ function SortableQuestion({
             />
           )}
 
-          {question.type !== "file" && question.type !== "image" && question.type !== "multiple" && question.type !== "checkbox" && (
-            <div className="flex items-center gap-2">
-              <Label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={question.allowImage}
-                  onChange={(e) =>
-                    updateQuestion(question.id, {
-                      allowImage: e.target.checked,
-                    })
-                  }
-                  className="rounded border-gray-300"
-                />
-                <ImageIcon className="h-4 w-4" />
-                Permitir resposta com imagem
-              </Label>
-            </div>
-          )}
+          {question.type !== "file" &&
+            question.type !== "image" &&
+            question.type !== "multiple" &&
+            question.type !== "checkbox" && (
+              <div className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={question.allowImage}
+                    onChange={(e) =>
+                      updateQuestion(question.id, {
+                        allowImage: e.target.checked,
+                      })
+                    }
+                    className="rounded border-gray-300"
+                  />
+                  <ImageIcon className="h-4 w-4" />
+                  Permitir resposta com imagem
+                </Label>
+              </div>
+            )}
 
           {question.allowImage && (
             <div className="space-y-2">
@@ -563,8 +565,8 @@ export default function FormBuilder({
       );
 
       const url = initialData?.id
-        ? `/api/forms/${initialData.id}` // Atualiza se o formulário já existir
-        : "/api/createForms"; // Cria um novo formulário
+        ? `/api/forms/${initialData.id}/edit`
+        : "/api/createForms";
       const method = initialData?.id ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -572,7 +574,7 @@ export default function FormBuilder({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData), // Transforma em JSON para envio
+        body: JSON.stringify(formData),
       });
 
       const responseData = await response.json();

@@ -6,14 +6,13 @@ import FormBuilder from "@/app/app/_components/form-builder";
 
 export default function EditFormPage() {
   const router = useRouter();
-  const params = useParams(); // Usa o hook para obter o ID
+  const params = useParams();
   const [form, setForm] = useState();
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchForm = async () => {
       try {
-        const id = params?.id; // Obtenha o ID de params
+        const id = params?.id;
         if (!id) {
           throw new Error("ID do formulário não foi fornecido");
         }
@@ -21,26 +20,27 @@ export default function EditFormPage() {
         const response = await fetch(`/api/getForms/${id}`);
         if (!response.ok) {
           throw new Error(
-            `Erro ao carregar formulário: ${response.statusText}`,
+            `Erro ao carregar formulário: ${response.statusText}`
           );
         }
 
         const data = await response.json();
-        console.log("Dados do formulário:", data); // Confirma os dados recebidos
         setForm(data);
       } catch (error) {
         console.error("Erro ao buscar formulário:", error);
         alert("Não foi possível carregar o formulário.");
         router.push("/app");
       } finally {
-        setLoading(false);
       }
     };
 
     fetchForm();
   }, [params, router]);
 
-  
+  if (!form) {
+    return null;
+  }
+
   return (
     <>
       <FormBuilder initialData={form} />

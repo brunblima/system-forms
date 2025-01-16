@@ -118,15 +118,17 @@ export default function FormResponsesPage() {
 
   const getFirstResponseName = (responses: FormResponse[]): string => {
     if (responses.length === 0) return "Sem nome";
-  
+
     // Pega a primeira resposta
     const firstResponse = responses[0];
-    const firstKey = Object.keys(firstResponse).find((key) => key !== "date" && key !== "id");
-  
+    const firstKey = Object.keys(firstResponse).find(
+      (key) => key !== "date" && key !== "id"
+    );
+
     if (firstKey && firstResponse[firstKey]?.text) {
       return firstResponse[firstKey].text;
     }
-  
+
     return "Sem nome";
   };
 
@@ -137,7 +139,10 @@ export default function FormResponsesPage() {
     });
   }, [responses, selectedDate]);
 
-  const firstResponderName = useMemo(() => getFirstResponseName(filteredResponses), [filteredResponses]);
+  const firstResponderName = useMemo(
+    () => getFirstResponseName(filteredResponses),
+    [filteredResponses]
+  );
 
   const renderResponses = (
     question: { id: string; title: string; type: string; allowImage: boolean },
@@ -148,7 +153,7 @@ export default function FormResponsesPage() {
       : responseData?.[question.id]
       ? [responseData[question.id]]
       : responses.map((r) => r[question.id] || []).flat();
-      
+
     switch (question.type) {
       case "short":
       case "long":
@@ -186,30 +191,61 @@ export default function FormResponsesPage() {
             </TableBody>
           </Table>
         );
-      case "multiple":
-      case "checkbox":
-        const data = responseArray.reduce((acc: any, curr: string) => {
-          acc[curr] = (acc[curr] || 0) + 1;
-          return acc;
-        }, {});
-        const chartData = Object.entries(data).map(([name, value]) => ({
-          name,
-          value,
-        }));
-
-        return (
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        );
+        case "multiple":
+          // Contabiliza múltiplas respostas por usuário
+          const multipleData = responseArray.reduce((acc: any, curr: any) => {
+            const keys = Array.isArray(curr) ? curr : [curr]; // Suporte a várias respostas
+            keys.forEach((key) => {
+              const text = typeof key === "object" && key !== null ? key.text : key; // Extrai texto se for objeto
+              acc[text] = (acc[text] || 0) + 1;
+            });
+            return acc;
+          }, {});
+          const multipleChartData = Object.entries(multipleData).map(([name, value]) => ({
+            name,
+            value,
+          }));
+        
+          return (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={multipleChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          );
+        
+        case "checkbox":
+          // Conta apenas uma resposta por usuário
+          const checkboxData = responseArray.reduce((acc: any, curr: any) => {
+            const key = Array.isArray(curr) ? curr[0] : curr; // Considera apenas a primeira resposta
+            const text = typeof key === "object" && key !== null ? key.text : key; // Extrai texto se for objeto
+            acc[text] = (acc[text] || 0) + 1;
+            return acc;
+          }, {});
+          const checkboxChartData = Object.entries(checkboxData).map(([name, value]) => ({
+            name,
+            value,
+          }));
+        
+          return (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={checkboxChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#82ca9d" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          );
       case "location":
         const locations = responseArray
           .map((response: { location: string }) => {
@@ -442,8 +478,10 @@ export default function FormResponsesPage() {
                               {format(parseISO(response.date), "HH:mm")}
                             </TableCell>
                             <TableCell>
-        {response.id === filteredResponses[0]?.id ? firstResponderName : "N/A"}
-      </TableCell>
+                              {response.id === filteredResponses[0]?.id
+                                ? firstResponderName
+                                : "N/A"}
+                            </TableCell>
                             <TableCell>
                               <Button
                                 onClick={() => setSelectedResponse(response)}

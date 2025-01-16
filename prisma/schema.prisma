@@ -16,7 +16,7 @@ model Form {
   creator     User       @relation(fields: [creatorId], references: [id]) // Relacionamento com o criador (User)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  responses   Response[]  // Respostas relacionadas a este formulário
+  responses   Response[] // Respostas relacionadas a este formulário
   questions   Question[] // Relacionamento com as perguntas deste formulário
 }
 
@@ -50,7 +50,7 @@ model Response {
   formId       String // Referência ao formulário
   respondentId String // ID do respondente (se aplicável, como um usuário autenticado)
   submittedAt  DateTime @default(now()) // Quando a resposta foi submetida
-  form         Form     @relation(fields: [formId], references: [id],  onDelete: Cascade)
+  form         Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
   answers      Answer[] // Respostas de todas as perguntas desse formulário
 }
 

@@ -8,14 +8,14 @@ export async function GET(
 ) {
   try {
     // Autenticação do usuário
-    const session = await auth();
+    // const session = await auth();
 
-    if (!session || !session.user?.id) {
-      return NextResponse.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
-      );
-    }
+    // if (!session || !session.user?.id) {
+    //   return NextResponse.json(
+    //     { error: "Usuário não autenticado" },
+    //     { status: 401 },
+    //   );
+    // }
 
     const formId = params.id;
 
@@ -29,13 +29,13 @@ export async function GET(
     // Busca o formulário específico do usuário
     const form = await db.form.findFirst({
       where: {
-        id: formId,
-        creatorId: session.user.id, // Garante que pertence ao usuário autenticado
+        id: formId, // Apenas verifica o ID do formulário
       },
       include: {
         questions: true,
       },
     });
+    
 
     if (!form) {
       return NextResponse.json(

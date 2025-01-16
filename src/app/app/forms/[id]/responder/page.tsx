@@ -127,22 +127,30 @@ export default function RespondForm() {
       const responsePayload = formData.questions.reduce((acc, question) => {
         const response = responses[question.id];
         acc[question.id] = {
-          text: typeof response === "string" ? response : null,
+          text:
+            question.type === "checkbox" || question.type === "multiple"
+              ? Array.isArray(response)
+                ? response.join(", ")
+                : response
+              : typeof response === "string"
+              ? response
+              : null,
           image: imageResponses[question.id] || null,
           latitude: response?.latitude || null,
           longitude: response?.longitude || null,
         };
         return acc;
       }, {} as Record<string, any>);
-  
+      
+
       const res = await fetch(`/api/forms/${params.id}/responder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(responsePayload),
       });
-  
+
       if (!res.ok) throw new Error("Erro ao enviar o formulário.");
-  
+
       toast({
         title: "Resposta enviada com sucesso!",
         description: "Obrigado por responder ao formulário.",
@@ -187,49 +195,42 @@ export default function RespondForm() {
                     }
                   />
                 )}
-                {question.type === "multiple" && (
-                  <RadioGroup
-                    onValueChange={(value) =>
-                      handleInputChange(question.id, value)
-                    }
-                    required={question.isRequired}
-                  >
-                    {question.options?.map((option) => (
-                      <div key={option} className="flex items-center space-x-2">
-                        <RadioGroupItem
-                          value={option}
-                          id={`${question.id}-${option}`}
-                        />
-                        <Label htmlFor={`${question.id}-${option}`}>
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
-                {question.type === "checkbox" && (
-                  <div className="space-y-2">
-                    {question.options?.map((option) => (
-                      <div key={option} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`${question.id}-${option}`}
-                          onCheckedChange={(checked) => {
-                            const currentValue = responses[question.id] || [];
-                            const newValue = checked
-                              ? [...currentValue, option]
-                              : currentValue.filter(
-                                  (v: string) => v !== option
-                                );
-                            handleInputChange(question.id, newValue);
-                          }}
-                        />
-                        <Label htmlFor={`${question.id}-${option}`}>
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
+          {question.type === "checkbox" && (
+  <RadioGroup
+    onValueChange={(value) => handleInputChange(question.id, value)}
+    required={question.isRequired}
+  >
+    {question.options?.map((option) => (
+      <div key={option} className="flex items-center space-x-2">
+        <RadioGroupItem value={option} id={`${question.id}-${option}`} />
+        <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
+      </div>
+    ))}
+  </RadioGroup>
+)}
+
+{question.type === "multiple" && (
+  <div className="space-y-2">
+    {question.options?.map((option) => (
+      <div key={option} className="flex items-center space-x-2">
+        <Checkbox
+          id={`${question.id}-${option}`}
+          onCheckedChange={(checked) => {
+            const currentValue = responses[question.id] || [];
+            const newValue = checked
+              ? [...currentValue, option]
+              : currentValue.filter((v: string) => v !== option);
+
+            handleInputChange(question.id, newValue);
+          }}
+        />
+        <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
+      </div>
+    ))}
+  </div>
+)}
+
+
                 {question.allowImage && (
                   <div className="space-y-2">
                     <div className="flex gap-2">
@@ -244,16 +245,6 @@ export default function RespondForm() {
                         }
                       >
                         <Upload className="h-4 w-4 mr-2" /> Carregar imagem
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          console.log("Abrir câmera (não implementado)")
-                        }
-                      >
-                        <Camera className="h-4 w-4 mr-2" /> Tirar foto
                       </Button>
                     </div>
                     <input
@@ -337,16 +328,6 @@ export default function RespondForm() {
                         }
                       >
                         <Upload className="h-4 w-4 mr-2" /> Carregar imagem
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          console.log("Abrir câmera (não implementado)")
-                        }
-                      >
-                        <Camera className="h-4 w-4 mr-2" /> Tirar foto
                       </Button>
                     </div>
                     <input
