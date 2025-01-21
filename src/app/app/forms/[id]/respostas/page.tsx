@@ -21,7 +21,12 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  useJsApiLoader,
+  Marker,
+  InfoWindow,
+} from "@react-google-maps/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -82,7 +87,7 @@ export default function FormResponsesPage() {
   const [selectedResponse, setSelectedResponse] = useState<FormResponse | null>(
     null
   );
-
+  const [activeMarker, setActiveMarker] = useState<number | null>(null);
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -191,89 +196,104 @@ export default function FormResponsesPage() {
             </TableBody>
           </Table>
         );
-        case "multiple":
-          // Contabiliza múltiplas respostas por usuário
-          const multipleData = responseArray.reduce((acc: any, curr: any) => {
-            const keys = Array.isArray(curr) ? curr : [curr]; // Suporte a várias respostas
-            keys.forEach((key) => {
-              const text = typeof key === "object" && key !== null ? key.text : key; // Extrai texto se for objeto
-              acc[text] = (acc[text] || 0) + 1;
-            });
-            return acc;
-          }, {});
-          const multipleChartData = Object.entries(multipleData).map(([name, value]) => ({
-            name,
-            value,
-          }));
-        
-          return (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={multipleChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#8884d8" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          );
-        
-        case "checkbox":
-          // Conta apenas uma resposta por usuário
-          const checkboxData = responseArray.reduce((acc: any, curr: any) => {
-            const key = Array.isArray(curr) ? curr[0] : curr; // Considera apenas a primeira resposta
-            const text = typeof key === "object" && key !== null ? key.text : key; // Extrai texto se for objeto
+      case "multiple":
+        // Contabiliza múltiplas respostas por usuário
+        const multipleData = responseArray.reduce((acc: any, curr: any) => {
+          const keys = Array.isArray(curr) ? curr : [curr]; // Suporte a várias respostas
+          keys.forEach((key) => {
+            const text =
+              typeof key === "object" && key !== null ? key.text : key; // Extrai texto se for objeto
             acc[text] = (acc[text] || 0) + 1;
-            return acc;
-          }, {});
-          const checkboxChartData = Object.entries(checkboxData).map(([name, value]) => ({
+          });
+          return acc;
+        }, {});
+        const multipleChartData = Object.entries(multipleData).map(
+          ([name, value]) => ({
             name,
             value,
-          }));
-        
-          return (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={checkboxChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#82ca9d" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          );
+          })
+        );
+
+        return (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={multipleChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      case "checkbox":
+        // Conta apenas uma resposta por usuário
+        const checkboxData = responseArray.reduce((acc: any, curr: any) => {
+          const key = Array.isArray(curr) ? curr[0] : curr; // Considera apenas a primeira resposta
+          const text = typeof key === "object" && key !== null ? key.text : key; // Extrai texto se for objeto
+          acc[text] = (acc[text] || 0) + 1;
+          return acc;
+        }, {});
+        const checkboxChartData = Object.entries(checkboxData).map(
+          ([name, value]) => ({
+            name,
+            value,
+          })
+        );
+
+        return (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={checkboxChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#82ca9d" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
       case "location":
         const locations = responseArray
-          .map((response: { location: string }) => {
-            if (!response || !response.location) return null; // Verifica se `response` e `location` são válidos
+          .map((response: { location: string; image?: string }) => {
+            if (!response || !response.location) return null;
             try {
-              const parsed = JSON.parse(response.location); // Faz o parse da string JSON
+              const parsed = JSON.parse(response.location);
               if (
                 typeof parsed.latitude === "number" &&
                 typeof parsed.longitude === "number"
               ) {
-                return { lat: parsed.latitude, lng: parsed.longitude };
+                return {
+                  lat: parsed.latitude,
+                  lng: parsed.longitude,
+                  image: response.image || null,
+                };
               }
-              return null; // Retorna `null` se os valores não forem válidos
+              return null;
             } catch (error) {
               console.error(
                 "Erro ao parsear localização:",
                 error,
                 response.location
               );
-              return null; // Retorna `null` se o JSON for inválido
+              return null;
             }
           })
           .filter(
-            (loc: unknown): loc is { lat: number; lng: number } => loc !== null
-          ); // Filtra valores nulos
+            (
+              loc: any
+            ): loc is { lat: number; lng: number; image: string | null } =>
+              loc !== null
+          );
 
         if (locations.length === 0)
           return <p>Nenhuma localização registrada</p>;
+
+        const handleMarkerClick = (index: number) => {
+          setActiveMarker((prev) => (prev === index ? null : index));
+        };
 
         const center = locations[0];
 
@@ -303,16 +323,45 @@ export default function FormResponsesPage() {
               >
                 {locations.map(
                   (
-                    location: google.maps.LatLng | google.maps.LatLngLiteral,
-                    index: Key | null | undefined
+                    location: {
+                      lat: number;
+                      lng: number;
+                      image: string | null;
+                    },
+                    index: number
                   ) => (
-                    <Marker key={index} position={location} />
+                    <Marker
+                      key={index}
+                      position={location}
+                      onClick={() => handleMarkerClick(index)}
+                    >
+                      {activeMarker === index && (
+                        <InfoWindow
+                          position={location}
+                          onCloseClick={() => setActiveMarker(null)}
+                        >
+                          {location.image ? (
+                            <a
+                              href={location.image}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline"
+                            >
+                              Ver Imagem
+                            </a>
+                          ) : (
+                            <p>Sem imagem</p>
+                          )}
+                        </InfoWindow>
+                      )}
+                    </Marker>
                   )
                 )}
               </GoogleMap>
             )}
           </MapWrapper>
         );
+
       case "file":
         return (
           <Table>

@@ -4,16 +4,19 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get(
     process.env.NODE_ENV === "production"
       ? "__Secure-authjs.session-token"
-      : "authjs.session-token",
+      : "authjs.session-token"
   );
+
   const pathname = request.nextUrl.pathname;
 
-  if (pathname === "/" && token) {
-    return NextResponse.redirect(new URL("/app", request.url));
+  // Permite acesso público à página de responder formulários
+  if (pathname.startsWith("/app/forms") && pathname.includes("/responder")) {
+    return NextResponse.next();
   }
 
+  // Redireciona para login se o usuário não estiver autenticado
   if (pathname.startsWith("/app") && !token) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/", request.url)); // Redireciona para a página de login
   }
 
   return NextResponse.next();

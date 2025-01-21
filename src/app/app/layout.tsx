@@ -15,14 +15,13 @@ export default async function AuthenticatedLayout({
   if (session) {
     user = session.user;
   } else {
-    return redirect("/");
   }
 
   return (
     <div className="flex min-h-screen w-full">
       <SessionProvider>
         <SidebarProvider>
-          <Sidebar user={user} />
+          {user && <Sidebar user={user} />}
           <div className="flex w-full flex-col">
             <SidebarTrigger className="md:hidden ml-2 mt-2" />
             <main>{children}</main>
