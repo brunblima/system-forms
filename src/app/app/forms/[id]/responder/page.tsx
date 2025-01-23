@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Upload, Camera, XCircle } from "lucide-react";
+import { MapPin, Upload, Camera, XCircle, Loader2 } from "lucide-react";
 
 interface Question {
   id: string;
@@ -43,6 +43,9 @@ export default function RespondForm() {
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState<boolean>(false); // Estado para o loading
+  const [submitting, setSubmitting] = useState<boolean>(false); // Estado para o botão de envio
+
 
   useEffect(() => {
     const fetchFormData = async () => {
@@ -123,6 +126,7 @@ export default function RespondForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true); // Ativa o estado de envio
     try {
       const responsePayload = formData.questions.reduce((acc, question) => {
         const response = responses[question.id];
@@ -141,16 +145,15 @@ export default function RespondForm() {
         };
         return acc;
       }, {} as Record<string, any>);
-      
-
+  
       const res = await fetch(`/api/forms/${params.id}/responder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(responsePayload),
       });
-
+  
       if (!res.ok) throw new Error("Erro ao enviar o formulário.");
-
+  
       toast({
         title: "Resposta enviada com sucesso!",
         description: "Obrigado por responder ao formulário.",
@@ -162,8 +165,19 @@ export default function RespondForm() {
         description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false); // Desativa o estado de envio após o término
     }
   };
+  
+  if (loading) {
+    // Exibição de loading durante o carregamento dos dados do formulário
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-10">
@@ -195,41 +209,51 @@ export default function RespondForm() {
                     }
                   />
                 )}
-          {question.type === "checkbox" && (
-  <RadioGroup
-    onValueChange={(value) => handleInputChange(question.id, value)}
-    required={question.isRequired}
-  >
-    {question.options?.map((option) => (
-      <div key={option} className="flex items-center space-x-2">
-        <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-        <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
-      </div>
-    ))}
-  </RadioGroup>
-)}
+                {question.type === "checkbox" && (
+                  <RadioGroup
+                    onValueChange={(value) =>
+                      handleInputChange(question.id, value)
+                    }
+                    required={question.isRequired}
+                  >
+                    {question.options?.map((option) => (
+                      <div key={option} className="flex items-center space-x-2">
+                        <RadioGroupItem
+                          value={option}
+                          id={`${question.id}-${option}`}
+                        />
+                        <Label htmlFor={`${question.id}-${option}`}>
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
 
-{question.type === "multiple" && (
-  <div className="space-y-2">
-    {question.options?.map((option) => (
-      <div key={option} className="flex items-center space-x-2">
-        <Checkbox
-          id={`${question.id}-${option}`}
-          onCheckedChange={(checked) => {
-            const currentValue = responses[question.id] || [];
-            const newValue = checked
-              ? [...currentValue, option]
-              : currentValue.filter((v: string) => v !== option);
+                {question.type === "multiple" && (
+                  <div className="space-y-2">
+                    {question.options?.map((option) => (
+                      <div key={option} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`${question.id}-${option}`}
+                          onCheckedChange={(checked) => {
+                            const currentValue = responses[question.id] || [];
+                            const newValue = checked
+                              ? [...currentValue, option]
+                              : currentValue.filter(
+                                  (v: string) => v !== option
+                                );
 
-            handleInputChange(question.id, newValue);
-          }}
-        />
-        <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
-      </div>
-    ))}
-  </div>
-)}
-
+                            handleInputChange(question.id, newValue);
+                          }}
+                        />
+                        <Label htmlFor={`${question.id}-${option}`}>
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {question.allowImage && (
                   <div className="space-y-2">

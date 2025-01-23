@@ -585,7 +585,7 @@ export default function FormBuilder({
           title: "Formulário salvo com sucesso!",
           description: "Seu formulário foi salvo no banco de dados.",
         });
-        router.push("/");
+        router.push("/app");
       } else {
         throw new Error(
           `Erro ${response.status}: ${

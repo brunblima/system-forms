@@ -4,25 +4,15 @@ import { auth } from "@/services/auth/auth";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: { id: string } }
 ) {
   try {
-    // Autenticação do usuário
-    // const session = await auth();
-
-    // if (!session || !session.user?.id) {
-    //   return NextResponse.json(
-    //     { error: "Usuário não autenticado" },
-    //     { status: 401 },
-    //   );
-    // }
-
     const formId = params.id;
 
     if (!formId) {
       return NextResponse.json(
         { error: "ID do formulário não foi fornecido" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -32,15 +22,33 @@ export async function GET(
         id: formId, // Apenas verifica o ID do formulário
       },
       include: {
-        questions: true,
+        questions: {
+          orderBy: {
+            order: "asc", // Garante que as perguntas sejam ordenadas pela coluna "order"
+          },
+        },
       },
     });
-    
 
     if (!form) {
       return NextResponse.json(
         { error: "Formulário não encontrado" },
-        { status: 404 },
+        { status: 404 }
+      );
+    }
+
+    // Verifica se as perguntas estão na ordem correta (de 0 em diante)
+    const isOrdered = form.questions.every(
+      (question, index) => question.order === index
+    );
+
+    if (!isOrdered) {
+      return NextResponse.json(
+        {
+          error:
+            "As perguntas do formulário não seguem a sequência esperada (de 0 em diante)",
+        },
+        { status: 400 }
       );
     }
 
@@ -49,7 +57,7 @@ export async function GET(
     console.error(error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

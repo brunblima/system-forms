@@ -1,4 +1,3 @@
-// API para retornar respostas do banco de dados
 import { NextResponse } from "next/server";
 import { db } from "@/services/database/db";
 
@@ -12,7 +11,11 @@ export async function GET(
     const form = await db.form.findUnique({
       where: { id },
       include: {
-        questions: true,
+        questions: {
+          orderBy: {
+            order: "asc",
+          },
+        },
         responses: {
           include: {
             answers: true,
@@ -39,25 +42,41 @@ export async function GET(
           (a) => a.questionId === question.id
         );
 
+        // Caso a pergunta não tenha sido respondida
         if (!answer) {
-          responseData[question.id] = "Não respondido";
+          responseData[question.id] = { text: "Não respondido" };
+          if (question.allowImage) {
+            responseData[question.id].image = "Imagem não enviada";
+          }
           return;
         }
 
-        if (question.type === "image") {
-          responseData[question.id] = answer.answerImage || "Não respondido";
-        } else if (question.type === "location") {
-          responseData[question.id] = {
-            location: answer.answerLocation || "Não foi respondido com localização",
-            image: answer.answerImage || "Não foi respondido com imagem",
-          };
-        } else {
+        // Processamento com base no tipo da pergunta
+        if (question.type === "short" || question.type === "long") {
           responseData[question.id] = {
             text: answer.answerText || "Não respondido com texto",
-            image: question.allowImage
-              ? answer.answerImage || "Não foi respondido com imagem"
-              : undefined,
           };
+          if (question.allowImage) {
+            responseData[question.id].image =
+              answer.answerImage || "Imagem não enviada";
+          }
+        } else if (question.type === "location") {
+          responseData[question.id] = {
+            location:
+              answer.answerLocation || "Não foi respondido com localização",
+            image: answer.answerImage || "Imagem não enviada",
+          };
+        } else if (
+          question.type === "checkbox" ||
+          question.type === "multiple"
+        ) {
+          responseData[question.id] = {
+            text: answer.answerText || "Nenhuma opção selecionada",
+          };
+          if (question.allowImage) {
+            responseData[question.id].image =
+              answer.answerImage || "Imagem não enviada";
+          }
         }
       });
 

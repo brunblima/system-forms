@@ -88,6 +88,7 @@ export default function FormResponsesPage() {
     null
   );
   const [activeMarker, setActiveMarker] = useState<number | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -172,24 +173,28 @@ export default function FormResponsesPage() {
             </TableHeader>
             <TableBody>
               {responseArray.map((answer: any, index: number) => {
-                const { text = "Sem texto", image } =
-                  typeof answer === "object" ? answer : { text: answer };
+                const { text = "Sem texto", image = "Imagem não enviada" } =
+                  answer;
 
                 return (
                   <TableRow key={index}>
                     <TableCell>{text}</TableCell>
-                    <TableCell>
-                      {image ? (
-                        <a
-                          href={image}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline"
-                        >
-                          Ver Imagem
-                        </a>
-                      ) : null}
-                    </TableCell>
+                    {question.allowImage && (
+                      <TableCell>
+                        {image !== "Imagem não enviada" ? (
+                          <a
+                            href={image}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline"
+                          >
+                            Ver Imagem
+                          </a>
+                        ) : (
+                          "Imagem não enviada"
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -247,10 +252,14 @@ export default function FormResponsesPage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={checkboxChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                />
                 <Tooltip />
-                <Bar dataKey="value" fill="#82ca9d" />
+                <Bar dataKey="value" fill="#82ca9d" radius={4} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -361,7 +370,6 @@ export default function FormResponsesPage() {
             )}
           </MapWrapper>
         );
-
       case "file":
         return (
           <Table>
