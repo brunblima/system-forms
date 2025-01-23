@@ -45,7 +45,7 @@ export async function GET(
         // Caso a pergunta não tenha sido respondida
         if (!answer) {
           responseData[question.id] = { text: "Não respondido" };
-          if (question.allowImage) {
+          if (question.allowImage || question.type === "image") {
             responseData[question.id].image = "Imagem não enviada";
           }
           return;
@@ -77,6 +77,10 @@ export async function GET(
             responseData[question.id].image =
               answer.answerImage || "Imagem não enviada";
           }
+        } else if (question.type === "image") {
+          responseData[question.id] = {
+            image: answer.answerImage || "Imagem não enviada",
+          };
         }
       });
 

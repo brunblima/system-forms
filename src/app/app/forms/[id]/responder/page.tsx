@@ -43,7 +43,7 @@ export default function RespondForm() {
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [loading, setLoading] = useState<boolean>(false); // Estado para o loading
+ 
   const [submitting, setSubmitting] = useState<boolean>(false); // Estado para o botão de envio
 
 
@@ -170,7 +170,7 @@ export default function RespondForm() {
     }
   };
   
-  if (loading) {
+  if (submitting) {
     // Exibição de loading durante o carregamento dos dados do formulário
     return (
       <div className="flex items-center justify-center min-h-screen">

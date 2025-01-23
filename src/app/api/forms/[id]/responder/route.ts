@@ -29,67 +29,20 @@ export async function POST(
       form.questions.map(async (question) => {
         const response = responses[question.id];
         if (!response) return null;
-
+    
         const { text, image, latitude, longitude } = response;
         const answerData: any = {};
-
+    
         // Validar tipos específicos de perguntas
-        switch (question.type) {
-          case "image":
-            if (!image) {
-              throw new Error(
-                `Uma imagem é necessária para a pergunta "${question.title}".`
-              );
-            }
-            answerData.answerImage = image;
-            break;
-
-          case "location":
-            if (latitude === null || longitude === null) {
-              throw new Error(
-                `Uma localização válida é necessária para a pergunta "${question.title}".`
-              );
-            }
-            answerData.answerLocation = JSON.stringify({ latitude, longitude });
-            break;
-
-          case "short":
-          case "long":
-            if (!text) {
-              throw new Error(
-                `Uma resposta de texto é necessária para a pergunta "${question.title}".`
-              );
-            }
-            answerData.answerText = text;
-            break;
-
-          case "checkbox":
-          case "multiple":
-            if (!text || text.trim() === "") {
-              throw new Error(
-                `Uma resposta válida é necessária para a pergunta "${question.title}".`
-              );
-            }
-            answerData.answerText = text;
-            break;
-
-          default:
-            if (
-              question.isRequired &&
-              !text &&
-              !image &&
-              latitude === null &&
-              longitude === null
-            ) {
-              throw new Error(
-                `Uma resposta válida é necessária para "${question.title}".`
-              );
-            }
-        }
-
-        // Upload da imagem, se aplicável
-        if (question.allowImage && image) {
+        if (question.type === "image" || question.allowImage) {
+          if (!image) {
+            throw new Error(
+              `Uma imagem é necessária para a pergunta "${question.title}".`
+            );
+          }
+    
           try {
+            // Upload da imagem para o Cloudinary
             const uploadResult = await cloudinary.uploader.upload(image, {
               folder: "form_uploads",
             });
@@ -101,10 +54,30 @@ export async function POST(
             );
           }
         }
-
+    
+        // Tratar outros tipos de respostas
+        if (["short", "long", "checkbox", "multiple"].includes(question.type)) {
+          if (!text || text.trim() === "") {
+            throw new Error(
+              `Uma resposta de texto é necessária para a pergunta "${question.title}".`
+            );
+          }
+          answerData.answerText = text;
+        }
+    
+        if (question.type === "location") {
+          if (latitude === null || longitude === null) {
+            throw new Error(
+              `Uma localização válida é necessária para a pergunta "${question.title}".`
+            );
+          }
+          answerData.answerLocation = JSON.stringify({ latitude, longitude });
+        }
+    
         return { questionId: question.id, ...answerData };
       })
     );
+    
 
     // Criar nova resposta no banco
     const newResponse = await db.response.create({
