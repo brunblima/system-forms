@@ -23,7 +23,7 @@ export default async function AuthenticatedLayout({
         <SidebarProvider>
           {user && <Sidebar user={user} />}
           <div className="flex w-full flex-col">
-            <SidebarTrigger className="md:hidden ml-2 mt-2" />
+            {user && <SidebarTrigger className="md:hidden ml-2 mt-2" />}
             <main>{children}</main>
           </div>
         </SidebarProvider>

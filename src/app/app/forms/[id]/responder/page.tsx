@@ -43,9 +43,8 @@ export default function RespondForm() {
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
- 
-  const [submitting, setSubmitting] = useState<boolean>(false); // Estado para o botão de envio
 
+  const [submitting, setSubmitting] = useState<boolean>(false); // Estado para o botão de envio
 
   useEffect(() => {
     const fetchFormData = async () => {
@@ -145,15 +144,15 @@ export default function RespondForm() {
         };
         return acc;
       }, {} as Record<string, any>);
-  
+
       const res = await fetch(`/api/forms/${params.id}/responder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(responsePayload),
       });
-  
+
       if (!res.ok) throw new Error("Erro ao enviar o formulário.");
-  
+
       toast({
         title: "Resposta enviada com sucesso!",
         description: "Obrigado por responder ao formulário.",
@@ -169,7 +168,7 @@ export default function RespondForm() {
       setSubmitting(false); // Desativa o estado de envio após o término
     }
   };
-  
+
   if (submitting) {
     // Exibição de loading durante o carregamento dos dados do formulário
     return (
@@ -276,6 +275,14 @@ export default function RespondForm() {
                       id={`image-${question.id}`}
                       className="hidden"
                       accept="image/*"
+                      capture="environment"
+                      onChange={(e) => handleImageUpload(question.id, e)}
+                    />
+                    <input
+                      type="file"
+                      id={`image-${question.id}`}
+                      className="hidden"
+                      accept="image/*"
                       onChange={(e) => handleImageUpload(question.id, e)}
                     />
                     {imageResponses[question.id] && (
@@ -354,6 +361,14 @@ export default function RespondForm() {
                         <Upload className="h-4 w-4 mr-2" /> Carregar imagem
                       </Button>
                     </div>
+                    <input
+                      type="file"
+                      id={`image-${question.id}`}
+                      className="hidden"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => handleImageUpload(question.id, e)}
+                    />
                     <input
                       type="file"
                       id={`image-${question.id}`}
