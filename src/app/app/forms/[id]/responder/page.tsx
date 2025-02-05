@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Upload, Camera, XCircle, Loader2 } from "lucide-react";
+import imageCompression from "browser-image-compression";
 
 interface Question {
   id: string;
@@ -71,22 +72,45 @@ export default function RespondForm() {
     setResponses((prev) => ({ ...prev, [questionId]: value }));
   };
 
-  const handleImageUpload = (
+  const handleImageUpload = async (
     questionId: string,
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
-    console.log("Arquivo selecionado:", file);
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageResponses((prev) => ({
-          ...prev,
-          [questionId]: reader.result as string,
-        }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+  
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  
+    // Se o arquivo for maior que o limite, tenta compactar
+    let imageFile = file;
+    if (file.size > MAX_FILE_SIZE) {
+      try {
+        const options = {
+          maxSizeMB: 1, // Alvo em MB, ajuste conforme necessário
+          maxWidthOrHeight: 1920, // Largura ou altura máxima
+          useWebWorker: true,
+        };
+        imageFile = await imageCompression(file, options);
+      } catch (error) {
+        console.error("Erro ao compactar a imagem:", error);
+        toast({
+          title: "Erro",
+          description:
+            "Não foi possível compactar a imagem. Por favor, escolha uma imagem menor.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
+  
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImageResponses((prev) => ({
+        ...prev,
+        [questionId]: reader.result as string,
+      }));
+    };
+    reader.readAsDataURL(imageFile);
   };
 
   const captureLocation = (questionId: string) => {
@@ -201,6 +225,16 @@ export default function RespondForm() {
                 </Label>
                 {(question.type === "short" || question.type === "long") && (
                   <Input
+                    id={question.id}
+                    required={question.isRequired}
+                    onChange={(e) =>
+                      handleInputChange(question.id, e.target.value)
+                    }
+                  />
+                )}
+                {question.type === "date" && (
+                  <Input
+                    type="date"
                     id={question.id}
                     required={question.isRequired}
                     onChange={(e) =>

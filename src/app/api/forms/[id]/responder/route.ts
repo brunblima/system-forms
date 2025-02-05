@@ -68,6 +68,16 @@ export async function POST(
           }
         }
 
+        if (question.type === "date") {
+          if (!text || text.trim() === "") {
+            throw new Error(
+              `Uma data é necessária para a pergunta "${question.title}".`
+            );
+          }
+          // Assume que o valor recebido já esteja no formato "YYYY-MM-DD" (ou outro formato válido)
+          answerData.answerText = text;
+        }
+
         // Tratar outros tipos de respostas
         if (["short", "long", "checkbox", "multiple"].includes(question.type)) {
           if (!text || text.trim() === "") {

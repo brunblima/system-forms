@@ -26,6 +26,7 @@ import {
   Trash2,
   MapPin,
   FileIcon,
+  Calendar,
 } from "lucide-react";
 import {
   DndContext,
@@ -314,6 +315,12 @@ function SortableQuestion({
                     <span>Upload de arquivo</span>
                   </div>
                 </SelectItem>
+                <SelectItem value="date">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span>Data</span>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -346,6 +353,12 @@ function SortableQuestion({
               ) : (
                 <Textarea disabled placeholder="Resposta longa" />
               )}
+            </div>
+          )}
+
+          {question.type === "date" && (
+            <div className="pl-4 border-l-2 border-gray-200">
+              <Input type="date" disabled placeholder="Escolha uma data" />
             </div>
           )}
 
@@ -422,7 +435,8 @@ function SortableQuestion({
           {question.type !== "file" &&
             question.type !== "image" &&
             question.type !== "multiple" &&
-            question.type !== "checkbox" && (
+            question.type !== "checkbox" &&
+            question.type !== "date" && (
               <div className="flex items-center gap-2">
                 <Label className="flex items-center gap-2 cursor-pointer">
                   <input

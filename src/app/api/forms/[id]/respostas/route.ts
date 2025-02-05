@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/services/database/db";
+import { format } from "date-fns"; // Importa a função de formatação
 
 export async function GET(
   request: Request,
@@ -80,6 +81,10 @@ export async function GET(
         } else if (question.type === "image") {
           responseData[question.id] = {
             image: answer.answerImage || "Imagem não enviada",
+          };
+        } else if (question.type === "date") {
+          responseData[question.id] = {
+            date: answer.answerText || "Não respondido",
           };
         }
       });

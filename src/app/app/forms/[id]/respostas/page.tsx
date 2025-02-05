@@ -104,6 +104,7 @@ export default function FormResponsesPage() {
 
         const data = await response.json();
         setFormData(data);
+        console.log(data.responses);
         setResponses(data.responses);
       } catch (error) {
         console.error("Erro ao buscar os dados do formulário:", error);
@@ -195,6 +196,53 @@ export default function FormResponsesPage() {
                         )}
                       </TableCell>
                     )}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        );
+      case "date":
+        return (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Resposta</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {responseArray.map((answer: any, index: number) => {
+                // Converte a string de data sem alteração de fuso horário
+                const dateValue = answer?.date
+                  ? format(parseISO(answer.date), "dd/MM/yyyy")
+                  : "Não respondido";
+
+                return (
+                  <TableRow key={index}>
+                    <TableCell>{dateValue}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        );
+        return (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {responseArray.map((answer: any, index: number) => {
+                // Certifique-se de que `answer` contém a data antes de formatar
+                const dateValue = answer?.date
+                  ? format(new Date(answer.date), "dd/MM/yyyy")
+                  : "Não respondido";
+
+                return (
+                  <TableRow key={index}>
+                    <TableCell>{dateValue}</TableCell>
                   </TableRow>
                 );
               })}
