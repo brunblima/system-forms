@@ -542,9 +542,7 @@ export default function FormBuilder({
       setQuestions((items) => {
         const oldIndex = items.findIndex((q) => q.id === active.id);
         const newIndex = items.findIndex((q) => q.id === over.id);
-
         const updatedQuestions = arrayMove(items, oldIndex, newIndex);
-
         // Atualiza a ordem de cada pergunta após movimentar
         return updatedQuestions.map((q, index) => ({
           ...q,
@@ -560,6 +558,7 @@ export default function FormBuilder({
         title: formTitle.trim(),
         description: formDescription.trim() || null,
         questions: questions.map((question, index) => ({
+          id: question.id,
           title: question.title.trim(),
           type: question.type,
           isRequired: question.isRequired || false,
