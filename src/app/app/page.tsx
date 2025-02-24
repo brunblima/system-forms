@@ -82,7 +82,7 @@ export default function Home() {
   }
 
   return (
-    <div className="container mx-auto py-5">
+    <div className="mx-auto py-5 px-5">
       <div className="flex justify-between items-center mb-10">
         <h1 className="text-3xl font-bold truncate">Meus Formulários</h1>
         <Link href="/app/create">
