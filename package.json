@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 172.20.7.73",
     "build": "next build && prisma generate && prisma migrate deploy",
     "start": "next start",
     "lint": "next lint",
@@ -55,6 +55,8 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.1.6",
     "input-otp": "^1.4.1",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.462.0",
     "next": "^14.2.12",

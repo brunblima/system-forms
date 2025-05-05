@@ -22,7 +22,8 @@ export async function POST(
       );
     }
 
-    const responses = await req.json();
+    const formData = await req.formData();
+    const responses = JSON.parse(formData.get("responses") as string);
 
     // Processar respostas
     const formattedAnswers = await Promise.all(
@@ -30,71 +31,63 @@ export async function POST(
         const response = responses[question.id];
         if (!response) return null;
 
-        const { text, image, latitude, longitude } = response;
+        const { text, latitude, longitude } = response;
+        const image = formData.get(`image-${question.id}`) as File | null;
         const answerData: any = {};
 
-        // Validar tipos específicos de perguntas
-        if (question.type === "image") {
-          if (!image) {
-            throw new Error(
-              `Uma imagem é necessária para a pergunta "${question.title}".`
-            );
-          }
+        if (question.isRequired && !text && !image && !latitude && !longitude) {
+          throw new Error(`A pergunta "${question.title}" é obrigatória.`);
+        }
 
-          try {
-            // Upload da imagem para o Cloudinary
-            const uploadResult = await cloudinary.uploader.upload(image, {
-              folder: "form_uploads",
-            });
-            answerData.answerImage = uploadResult.secure_url;
-          } catch (error) {
-            console.error(`Erro ao fazer upload da imagem:`, error);
-            throw new Error(
-              `Falha ao processar a imagem para a pergunta "${question.title}".`
-            );
-          }
-        } else if (question.allowImage && image) {
-          // Se `allowImage` for verdadeiro e uma imagem foi enviada, fazer upload
-          try {
-            const uploadResult = await cloudinary.uploader.upload(image, {
-              folder: "form_uploads",
-            });
-            answerData.answerImage = uploadResult.secure_url;
-          } catch (error) {
-            console.error(`Erro ao fazer upload da imagem:`, error);
-            throw new Error(
-              `Falha ao processar a imagem para a pergunta "${question.title}".`
-            );
+        if (question.type === "image" || (question.allowImage && image)) {
+          if (image) {
+            const arrayBuffer = await image.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const base64Image = `data:${image.type};base64,${buffer.toString("base64")}`;
+            try {
+              const uploadResult = await cloudinary.uploader.upload(base64Image, {
+                folder: "form_uploads",
+              });
+              answerData.answerImage = uploadResult.secure_url;
+            } catch (error) {
+              console.error(`Erro ao fazer upload da imagem:`, error);
+              throw new Error(`Falha ao processar a imagem para "${question.title}".`);
+            }
+          } else if (question.type === "image") {
+            throw new Error(`Uma imagem é necessária para "${question.title}".`);
           }
         }
 
         if (question.type === "date") {
-          if (!text || text.trim() === "") {
-            throw new Error(
-              `Uma data é necessária para a pergunta "${question.title}".`
-            );
+          if (text && text.trim()) {
+            answerData.answerText = text;
+          } else if (question.isRequired) {
+            throw new Error(`Uma data é necessária para "${question.title}".`);
           }
-          // Assume que o valor recebido já esteja no formato "YYYY-MM-DD" (ou outro formato válido)
-          answerData.answerText = text;
         }
 
-        // Tratar outros tipos de respostas
-        if (["short", "long", "checkbox", "multiple"].includes(question.type)) {
-          if (!text || text.trim() === "") {
-            throw new Error(
-              `Uma resposta de texto é necessária para a pergunta "${question.title}".`
-            );
+        if (["short", "long"].includes(question.type)) {
+          if (text && text.trim()) {
+            answerData.answerText = text;
+          } else if (question.isRequired) {
+            throw new Error(`Uma resposta é necessária para "${question.title}".`);
           }
-          answerData.answerText = text;
+        }
+
+        if (["checkbox", "multiple"].includes(question.type)) {
+          if (text) {
+            answerData.answerText = Array.isArray(text) ? JSON.stringify(text) : text;
+          } else if (question.isRequired) {
+            throw new Error(`Uma seleção é necessária para "${question.title}".`);
+          }
         }
 
         if (question.type === "location") {
-          if (latitude === null || longitude === null) {
-            throw new Error(
-              `Uma localização válida é necessária para a pergunta "${question.title}".`
-            );
+          if (latitude !== null && longitude !== null) {
+            answerData.answerLocation = JSON.stringify({ latitude, longitude });
+          } else if (question.isRequired) {
+            throw new Error(`Uma localização é necessária para "${question.title}".`);
           }
-          answerData.answerLocation = JSON.stringify({ latitude, longitude });
         }
 
         return { questionId: question.id, ...answerData };
@@ -105,7 +98,7 @@ export async function POST(
     const newResponse = await db.response.create({
       data: {
         formId,
-        respondentId: "anonymous", // Usuário não autenticado
+        respondentId: "anonymous",
         answers: { create: formattedAnswers.filter(Boolean) },
       },
     });

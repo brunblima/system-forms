@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Upload, Camera, XCircle, Loader2 } from "lucide-react";
+import { MapPin, Upload, XCircle, Loader2 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 
 interface Question {
@@ -37,20 +37,20 @@ export default function RespondForm() {
     questions: [],
   });
   const [responses, setResponses] = useState<Record<string, any>>({});
-  const [imageResponses, setImageResponses] = useState<Record<string, string>>(
+  const [imageResponses, setImageResponses] = useState<Record<string, File>>(
     {}
   );
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [submitting, setSubmitting] = useState<boolean>(false); // Estado para o botão de envio
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchFormData = async () => {
       try {
-        const res = await fetch(`/api/getForms/${params.id}`);
+        const res = await fetch(`/api/getForms/${params.id}`, {
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error("Failed to fetch form data");
         const data = await res.json();
         setFormData(data);
@@ -58,13 +58,11 @@ export default function RespondForm() {
         console.error("Error fetching form data:", error);
         toast({
           title: "Erro ao carregar o formulário",
-          description:
-            "Não foi possível carregar os dados do formulário. Por favor, tente novamente mais tarde.",
+          description: "Não foi possível carregar os dados do formulário.",
           variant: "destructive",
         });
       }
     };
-
     fetchFormData();
   }, [params.id, toast]);
 
@@ -78,39 +76,39 @@ export default function RespondForm() {
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
-  
+
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-  
-    // Se o arquivo for maior que o limite, tenta compactar
+    const MAX_BACKEND_SIZE = 5 * 1024 * 1024; // 5MB para backend
+
     let imageFile = file;
     if (file.size > MAX_FILE_SIZE) {
       try {
         const options = {
-          maxSizeMB: 1, // Alvo em MB, ajuste conforme necessário
-          maxWidthOrHeight: 1920, // Largura ou altura máxima
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
           useWebWorker: true,
         };
         imageFile = await imageCompression(file, options);
+        if (imageFile.size > MAX_BACKEND_SIZE) {
+          toast({
+            title: "Erro",
+            description: "A imagem comprimida ainda é muito grande (máx. 5MB).",
+            variant: "destructive",
+          });
+          return;
+        }
       } catch (error) {
         console.error("Erro ao compactar a imagem:", error);
         toast({
           title: "Erro",
-          description:
-            "Não foi possível compactar a imagem. Por favor, escolha uma imagem menor.",
+          description: "Não foi possível compactar a imagem.",
           variant: "destructive",
         });
         return;
       }
     }
-  
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImageResponses((prev) => ({
-        ...prev,
-        [questionId]: reader.result as string,
-      }));
-    };
-    reader.readAsDataURL(imageFile);
+
+    setImageResponses((prev) => ({ ...prev, [questionId]: imageFile }));
   };
 
   const captureLocation = (questionId: string) => {
@@ -124,8 +122,7 @@ export default function RespondForm() {
           console.error("Error getting location:", error);
           toast({
             title: "Erro ao capturar localização",
-            description:
-              "Não foi possível obter sua localização. Por favor, verifique as permissões do seu navegador.",
+            description: "Verifique as permissões do navegador.",
             variant: "destructive",
           });
         }
@@ -149,52 +146,73 @@ export default function RespondForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true); // Ativa o estado de envio
+
+    // Validação de campos obrigatórios
+    for (const question of formData.questions) {
+      if (
+        question.isRequired &&
+        !responses[question.id] &&
+        !imageResponses[question.id]
+      ) {
+        toast({
+          title: "Erro",
+          description: `A pergunta "${question.title}" é obrigatória.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setSubmitting(true);
     try {
+      const formDataPayload = new FormData();
       const responsePayload = formData.questions.reduce((acc, question) => {
         const response = responses[question.id];
         acc[question.id] = {
           text:
             question.type === "checkbox" || question.type === "multiple"
               ? Array.isArray(response)
-                ? response.join(", ")
+                ? response
                 : response
               : typeof response === "string"
               ? response
               : null,
-          image: imageResponses[question.id] || null,
           latitude: response?.latitude || null,
           longitude: response?.longitude || null,
         };
         return acc;
       }, {} as Record<string, any>);
 
+      formDataPayload.append("responses", JSON.stringify(responsePayload));
+      Object.entries(imageResponses).forEach(([questionId, file]) => {
+        formDataPayload.append(`image-${questionId}`, file);
+      });
+
       const res = await fetch(`/api/forms/${params.id}/responder`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(responsePayload),
+        body: formDataPayload,
       });
 
       if (!res.ok) throw new Error("Erro ao enviar o formulário.");
 
       toast({
-        title: "Resposta enviada com sucesso!",
-        description: "Obrigado por responder ao formulário.",
+        title: "Sucesso!",
+        description: "Resposta enviada com sucesso.",
       });
-      router.push("/app");
+      router.push(`/forms/${params.id}/success`);
     } catch (error) {
+      console.error("Erro ao enviar:", error);
       toast({
         title: "Erro ao enviar resposta",
         description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
     } finally {
-      setSubmitting(false); // Desativa o estado de envio após o término
+      setSubmitting(false);
     }
   };
 
-  if (submitting) {
-    // Exibição de loading durante o carregamento dos dados do formulário
+  if (!formData.id) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -214,19 +232,26 @@ export default function RespondForm() {
       </Card>
       <form onSubmit={handleSubmit} className="space-y-6">
         {formData.questions.map((question) => (
-          <Card key={question.id} className="relative group">
+          <Card key={question.id}>
             <CardContent className="pt-6">
-              <div className="space-y-4">
-                <Label htmlFor={question.id} className="text-lg font-medium">
-                  {question.title}
-                  {question.isRequired && (
-                    <span className="text-red-500 ml-1">*</span>
-                  )}
-                </Label>
-                {(question.type === "short" || question.type === "long") && (
+              <Label htmlFor={question.id} className="text-lg font-medium">
+                {question.title}
+                {question.isRequired && (
+                  <span className="text-red-500 ml-1">*</span>
+                )}
+              </Label>
+              <div className="mt-4 space-y-4">
+                {question.type === "short" && (
                   <Input
                     id={question.id}
-                    required={question.isRequired}
+                    onChange={(e) =>
+                      handleInputChange(question.id, e.target.value)
+                    }
+                  />
+                )}
+                {question.type === "long" && (
+                  <Textarea
+                    id={question.id}
                     onChange={(e) =>
                       handleInputChange(question.id, e.target.value)
                     }
@@ -236,20 +261,18 @@ export default function RespondForm() {
                   <Input
                     type="date"
                     id={question.id}
-                    required={question.isRequired}
                     onChange={(e) =>
                       handleInputChange(question.id, e.target.value)
                     }
                   />
                 )}
-                {question.type === "checkbox" && (
+                {question.type === "checkbox" && question.options && (
                   <RadioGroup
                     onValueChange={(value) =>
                       handleInputChange(question.id, value)
                     }
-                    required={question.isRequired}
                   >
-                    {question.options?.map((option) => (
+                    {question.options.map((option) => (
                       <div key={option} className="flex items-center space-x-2">
                         <RadioGroupItem
                           value={option}
@@ -262,10 +285,9 @@ export default function RespondForm() {
                     ))}
                   </RadioGroup>
                 )}
-
-                {question.type === "multiple" && (
+                {question.type === "multiple" && question.options && (
                   <div className="space-y-2">
-                    {question.options?.map((option) => (
+                    {question.options.map((option) => (
                       <div key={option} className="flex items-center space-x-2">
                         <Checkbox
                           id={`${question.id}-${option}`}
@@ -276,7 +298,6 @@ export default function RespondForm() {
                               : currentValue.filter(
                                   (v: string) => v !== option
                                 );
-
                             handleInputChange(question.id, newValue);
                           }}
                         />
@@ -285,56 +306,6 @@ export default function RespondForm() {
                         </Label>
                       </div>
                     ))}
-                  </div>
-                )}
-
-                {question.allowImage && (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          document
-                            .getElementById(`image-${question.id}`)
-                            ?.click()
-                        }
-                      >
-                        <Upload className="h-4 w-4 mr-2" /> Carregar imagem
-                      </Button>
-                    </div>
-                    <input
-                      type="file"
-                      id={`image-${question.id}`}
-                      className="hidden"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(e) => handleImageUpload(question.id, e)}
-                    />
-                    <input
-                      type="file"
-                      id={`image-${question.id}`}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handleImageUpload(question.id, e)}
-                    />
-                    {imageResponses[question.id] && (
-                      <div className="relative mt-2 w-24 h-24">
-                        <img
-                          src={imageResponses[question.id]}
-                          alt="Imagem carregada"
-                          className="w-full h-full object-cover rounded-md"
-                        />
-                        <button
-                          type="button"
-                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
-                          onClick={() => removeImage(question.id)}
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
                 {question.type === "location" && (
@@ -361,40 +332,18 @@ export default function RespondForm() {
                     </Button>
                   </div>
                 )}
-                {question.type === "file" && (
+                {(question.type === "image" || question.allowImage) && (
                   <div className="space-y-2">
-                    <Input
-                      type="file"
-                      id={question.id}
-                      accept="*/*"
-                      required={question.isRequired}
-                      onChange={(e) =>
-                        handleInputChange(question.id, e.target.files?.[0])
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        document.getElementById(`image-${question.id}`)?.click()
                       }
-                    />
-                    {responses[question.id] && (
-                      <p className="text-sm text-gray-500">
-                        Arquivo selecionado: {responses[question.id].name}
-                      </p>
-                    )}
-                  </div>
-                )}
-                {question.type === "image" && (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          document
-                            .getElementById(`image-${question.id}`)
-                            ?.click()
-                        }
-                      >
-                        <Upload className="h-4 w-4 mr-2" /> Carregar imagem
-                      </Button>
-                    </div>
+                    >
+                      <Upload className="h-4 w-4 mr-2" /> Carregar imagem
+                    </Button>
                     <input
                       type="file"
                       id={`image-${question.id}`}
@@ -403,17 +352,10 @@ export default function RespondForm() {
                       capture="environment"
                       onChange={(e) => handleImageUpload(question.id, e)}
                     />
-                    <input
-                      type="file"
-                      id={`image-${question.id}`}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handleImageUpload(question.id, e)}
-                    />
                     {imageResponses[question.id] && (
                       <div className="relative mt-2 w-24 h-24">
                         <img
-                          src={imageResponses[question.id]}
+                          src={URL.createObjectURL(imageResponses[question.id])}
                           alt="Imagem carregada"
                           className="w-full h-full object-cover rounded-md"
                         />
@@ -432,8 +374,15 @@ export default function RespondForm() {
             </CardContent>
           </Card>
         ))}
-        <Button type="submit" className="w-full">
-          Enviar Resposta
+        <Button type="submit" className="w-full" disabled={submitting}>
+          {submitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Enviando...
+            </>
+          ) : (
+            "Enviar Resposta"
+          )}
         </Button>
       </form>
     </div>

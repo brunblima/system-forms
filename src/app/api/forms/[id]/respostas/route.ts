@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { db } from "@/services/database/db";
-import { format } from "date-fns"; // Importa a função de formatação
 
 export async function GET(
   request: Request,
@@ -12,80 +11,49 @@ export async function GET(
     const form = await db.form.findUnique({
       where: { id },
       include: {
-        questions: {
-          orderBy: {
-            order: "asc",
-          },
-        },
-        responses: {
-          include: {
-            answers: true,
-          },
-        },
+        questions: { orderBy: { order: "asc" } },
+        responses: { include: { answers: true } },
       },
     });
 
     if (!form) {
-      return NextResponse.json(
-        { error: "Formulário não encontrado." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Formulário não encontrado." }, { status: 404 });
     }
 
     const mappedResponses = form.responses.map((response) => {
-      const responseData: { [key: string]: any } = {
+      const responseData: FormResponse = {
         id: response.id,
         date: response.submittedAt.toISOString(),
+        answers: {},
       };
 
       form.questions.forEach((question) => {
-        const answer = response.answers.find(
-          (a) => a.questionId === question.id
-        );
+        const answer = response.answers.find((a) => a.questionId === question.id);
+        responseData.answers[question.id] = {};
 
-        // Caso a pergunta não tenha sido respondida
         if (!answer) {
-          responseData[question.id] = { text: "Não respondido" };
+          responseData.answers[question.id] = { text: "Não respondido" };
           if (question.allowImage || question.type === "image") {
-            responseData[question.id].image = "Imagem não enviada";
+            responseData.answers[question.id].image = "Sem imagem";
           }
           return;
         }
 
-        // Processamento com base no tipo da pergunta
-        if (question.type === "short" || question.type === "long") {
-          responseData[question.id] = {
-            text: answer.answerText || "Não respondido com texto",
-          };
+        if (["short", "long", "date"].includes(question.type)) {
+          responseData.answers[question.id].text = answer.answerText || "Não respondido";
           if (question.allowImage) {
-            responseData[question.id].image =
-              answer.answerImage || "Imagem não enviada";
+            responseData.answers[question.id].image = answer.answerImage || "Sem imagem";
           }
         } else if (question.type === "location") {
-          responseData[question.id] = {
-            location:
-              answer.answerLocation || "Não foi respondido com localização",
-            image: answer.answerImage || "Imagem não enviada",
-          };
-        } else if (
-          question.type === "checkbox" ||
-          question.type === "multiple"
-        ) {
-          responseData[question.id] = {
-            text: answer.answerText || "Nenhuma opção selecionada",
-          };
+          responseData.answers[question.id].location = answer.answerLocation || "Sem localização";
+          responseData.answers[question.id].image = answer.answerImage || "Sem imagem";
+        } else if (["checkbox", "multiple"].includes(question.type)) {
+          responseData.answers[question.id].text = answer.answerText || "Nenhuma opção selecionada";
           if (question.allowImage) {
-            responseData[question.id].image =
-              answer.answerImage || "Imagem não enviada";
+            responseData.answers[question.id].image = answer.answerImage || "Sem imagem";
           }
         } else if (question.type === "image") {
-          responseData[question.id] = {
-            image: answer.answerImage || "Imagem não enviada",
-          };
-        } else if (question.type === "date") {
-          responseData[question.id] = {
-            date: answer.answerText || "Não respondido",
-          };
+          responseData.answers[question.id].image = answer.answerImage || "Sem imagem";
         }
       });
 
@@ -107,11 +75,14 @@ export async function GET(
     };
 
     return NextResponse.json(responseData);
-  } catch (error: any) {
-    console.error("Erro ao buscar os dados do formulário:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar os dados do formulário." },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("Erro ao buscar respostas:", error);
+    return NextResponse.json({ error: "Erro ao buscar respostas." }, { status: 500 });
   }
+}
+
+interface FormResponse {
+  id: string;
+  date: string;
+  answers: Record<string, { text?: string; image?: string; location?: string }>;
 }
