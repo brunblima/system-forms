@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Permite acesso público à página de responder formulários
-  if (pathname.startsWith("/app/forms") && pathname.includes("/responder")) {
+  if (pathname.startsWith("/app/forms") && pathname.includes("/responder") || pathname.endsWith("/success")) {
     return NextResponse.next();
   }
 

@@ -22,7 +22,7 @@ interface Question {
   allowImage?: boolean;
 }
 
-interface FormData {
+interface FormDataType {
   id: string;
   title: string;
   description: string;
@@ -30,7 +30,7 @@ interface FormData {
 }
 
 export default function RespondForm() {
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<FormDataType>({
     id: "",
     title: "",
     description: "",
@@ -46,7 +46,7 @@ export default function RespondForm() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchFormData = async () => {
+    async function fetchForm() {
       try {
         const res = await fetch(`/api/getForms/${params.id}`, {
           cache: "no-store",
@@ -62,8 +62,8 @@ export default function RespondForm() {
           variant: "destructive",
         });
       }
-    };
-    fetchFormData();
+    }
+    fetchForm();
   }, [params.id, toast]);
 
   const handleInputChange = (questionId: string, value: any) => {
@@ -77,38 +77,34 @@ export default function RespondForm() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    const MAX_BACKEND_SIZE = 5 * 1024 * 1024; // 5MB para backend
-
-    let imageFile = file;
-    if (file.size > MAX_FILE_SIZE) {
-      try {
-        const options = {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-        };
-        imageFile = await imageCompression(file, options);
-        if (imageFile.size > MAX_BACKEND_SIZE) {
-          toast({
-            title: "Erro",
-            description: "A imagem comprimida ainda é muito grande (máx. 5MB).",
-            variant: "destructive",
-          });
-          return;
-        }
-      } catch (error) {
-        console.error("Erro ao compactar a imagem:", error);
+    try {
+      // Compacta a imagem
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressed = await imageCompression(file, options);
+      if (compressed.size > 5 * 1024 * 1024) {
         toast({
           title: "Erro",
-          description: "Não foi possível compactar a imagem.",
+          description: "Imagem ainda maior que 5MB após compressão.",
           variant: "destructive",
         });
         return;
       }
+      setImageResponses((prev) => ({
+        ...prev,
+        [questionId]: compressed as File,
+      }));
+    } catch (err) {
+      console.error("Erro ao compactar imagem:", err);
+      toast({
+        title: "Erro",
+        description: "Falha ao processar a imagem.",
+        variant: "destructive",
+      });
     }
-
-    setImageResponses((prev) => ({ ...prev, [questionId]: imageFile }));
   };
 
   const captureLocation = (questionId: string) => {
@@ -147,16 +143,12 @@ export default function RespondForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validação de campos obrigatórios
-    for (const question of formData.questions) {
-      if (
-        question.isRequired &&
-        !responses[question.id] &&
-        !imageResponses[question.id]
-      ) {
+    // Validação de obrigatoriedade
+    for (const q of formData.questions) {
+      if (q.isRequired && !responses[q.id] && !imageResponses[q.id]) {
         toast({
           title: "Erro",
-          description: `A pergunta "${question.title}" é obrigatória.`,
+          description: `A pergunta "${q.title}" é obrigatória.`,
           variant: "destructive",
         });
         return;
@@ -165,46 +157,49 @@ export default function RespondForm() {
 
     setSubmitting(true);
     try {
-      const formDataPayload = new FormData();
-      const responsePayload = formData.questions.reduce((acc, question) => {
-        const response = responses[question.id];
-        acc[question.id] = {
-          text:
-            question.type === "checkbox" || question.type === "multiple"
-              ? Array.isArray(response)
-                ? response
-                : response
-              : typeof response === "string"
-              ? response
-              : null,
-          latitude: response?.latitude || null,
-          longitude: response?.longitude || null,
+      const payload = new FormData();
+
+      // Adiciona respostas textuais e localização
+      const respObj = formData.questions.reduce((acc, q) => {
+        const r = responses[q.id];
+        acc[q.id] = {
+          text: r ?? null,
+          latitude: r?.latitude ?? null,
+          longitude: r?.longitude ?? null,
         };
         return acc;
       }, {} as Record<string, any>);
+      payload.append("responses", JSON.stringify(respObj));
 
-      formDataPayload.append("responses", JSON.stringify(responsePayload));
-      Object.entries(imageResponses).forEach(([questionId, file]) => {
-        formDataPayload.append(`image-${questionId}`, file);
+      // Anexa imagens renomeadas
+      Object.entries(imageResponses).forEach(([id, file]) => {
+        const ext = file.name.split(".").pop();
+        const timestamp = Date.now();
+        const newName = `${id}-${timestamp}.${ext}`;
+        const renamed = new File([file], newName, { type: file.type });
+        payload.append(`image-${id}`, renamed);
       });
 
       const res = await fetch(`/api/forms/${params.id}/responder`, {
         method: "POST",
-        body: formDataPayload,
+        body: payload,
       });
 
-      if (!res.ok) throw new Error("Erro ao enviar o formulário.");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Erro ao enviar");
+      }
 
       toast({
         title: "Sucesso!",
         description: "Resposta enviada com sucesso.",
       });
       router.push(`/forms/${params.id}/success`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao enviar:", error);
       toast({
         title: "Erro ao enviar resposta",
-        description: "Ocorreu um erro. Tente novamente.",
+        description: error.message || "Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -292,13 +287,11 @@ export default function RespondForm() {
                         <Checkbox
                           id={`${question.id}-${option}`}
                           onCheckedChange={(checked) => {
-                            const currentValue = responses[question.id] || [];
-                            const newValue = checked
-                              ? [...currentValue, option]
-                              : currentValue.filter(
-                                  (v: string) => v !== option
-                                );
-                            handleInputChange(question.id, newValue);
+                            const current = responses[question.id] || [];
+                            const next = checked
+                              ? [...current, option]
+                              : current.filter((v: string) => v !== option);
+                            handleInputChange(question.id, next);
                           }}
                         />
                         <Label htmlFor={`${question.id}-${option}`}>
@@ -377,8 +370,7 @@ export default function RespondForm() {
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Enviando...
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...
             </>
           ) : (
             "Enviar Resposta"
