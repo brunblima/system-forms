@@ -194,7 +194,7 @@ export default function RespondForm() {
         title: "Sucesso!",
         description: "Resposta enviada com sucesso.",
       });
-      router.push(`/forms/${params.id}/success`);
+      router.push(`/app/forms/${params.id}/success`);
     } catch (error: any) {
       console.error("Erro ao enviar:", error);
       toast({
