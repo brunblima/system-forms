@@ -1,4 +1,3 @@
-// app/app/forms/[id]/success/page.tsx
 "use client";
 
 import { useRouter, useParams } from "next/navigation";

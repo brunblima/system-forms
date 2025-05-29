@@ -18,7 +18,7 @@ interface Question {
   type: string;
   title: string;
   isRequired: boolean;
-  options?: string[];
+  options?: { set: string[] } | string[];
   allowImage?: boolean;
 }
 
@@ -53,7 +53,30 @@ export default function RespondForm() {
         });
         if (!res.ok) throw new Error("Failed to fetch form data");
         const data = await res.json();
-        setFormData(data);
+        const questionsWithOptions = data.questions.map((q: Question) => {
+          const normalizedType = q.type.toLowerCase();
+          let normalizedOptions: string[] = [];
+          if (["checkbox", "multiple"].includes(normalizedType)) {
+            // Extrai o array de options.set, se existir, ou usa um array vazio
+            if (
+              q.options &&
+              typeof q.options === "object" &&
+              "set" in q.options
+            ) {
+              normalizedOptions = Array.isArray(q.options.set)
+                ? q.options.set.filter((opt) => opt.trim() !== "") // Remove opções vazias
+                : [];
+            } else if (Array.isArray(q.options)) {
+              normalizedOptions = q.options.filter((opt) => opt.trim() !== "");
+            }
+          }
+          return {
+            ...q,
+            type: normalizedType,
+            options: normalizedOptions,
+          };
+        });
+        setFormData({ ...data, questions: questionsWithOptions });
       } catch (error) {
         console.error("Error fetching form data:", error);
         toast({
@@ -78,7 +101,6 @@ export default function RespondForm() {
     if (!file) return;
 
     try {
-      // Compacta a imagem
       const options = {
         maxSizeMB: 1,
         maxWidthOrHeight: 1920,
@@ -143,7 +165,6 @@ export default function RespondForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validação de obrigatoriedade
     for (const q of formData.questions) {
       if (q.isRequired && !responses[q.id] && !imageResponses[q.id]) {
         toast({
@@ -159,7 +180,6 @@ export default function RespondForm() {
     try {
       const payload = new FormData();
 
-      // Adiciona respostas textuais e localização
       const respObj = formData.questions.reduce((acc, q) => {
         const r = responses[q.id];
         acc[q.id] = {
@@ -171,7 +191,6 @@ export default function RespondForm() {
       }, {} as Record<string, any>);
       payload.append("responses", JSON.stringify(respObj));
 
-      // Anexa imagens renomeadas
       Object.entries(imageResponses).forEach(([id, file]) => {
         const ext = file.name.split(".").pop();
         const timestamp = Date.now();
@@ -261,46 +280,56 @@ export default function RespondForm() {
                     }
                   />
                 )}
-                {question.type === "checkbox" && question.options && (
-                  <RadioGroup
-                    onValueChange={(value) =>
-                      handleInputChange(question.id, value)
-                    }
-                  >
-                    {question.options.map((option) => (
-                      <div key={option} className="flex items-center space-x-2">
-                        <RadioGroupItem
-                          value={option}
-                          id={`${question.id}-${option}`}
-                        />
-                        <Label htmlFor={`${question.id}-${option}`}>
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
-                {question.type === "multiple" && question.options && (
-                  <div className="space-y-2">
-                    {question.options.map((option) => (
-                      <div key={option} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`${question.id}-${option}`}
-                          onCheckedChange={(checked) => {
-                            const current = responses[question.id] || [];
-                            const next = checked
-                              ? [...current, option]
-                              : current.filter((v: string) => v !== option);
-                            handleInputChange(question.id, next);
-                          }}
-                        />
-                        <Label htmlFor={`${question.id}-${option}`}>
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {question.type === "checkbox" &&
+                  Array.isArray(question.options) &&
+                  question.options.length > 0 && (
+                    <RadioGroup
+                      onValueChange={(value) =>
+                        handleInputChange(question.id, value)
+                      }
+                    >
+                      {question.options.map((option: string) => (
+                        <div
+                          key={option}
+                          className="flex items-center space-x-2"
+                        >
+                          <RadioGroupItem
+                            value={option}
+                            id={`${question.id}-${option}`}
+                          />
+                          <Label htmlFor={`${question.id}-${option}`}>
+                            {option}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  )}
+                {question.type === "multiple" &&
+                  Array.isArray(question.options) &&
+                  question.options.length > 0 && (
+                    <div className="space-y-2">
+                      {question.options.map((option: string) => (
+                        <div
+                          key={option}
+                          className="flex items-center space-x-2"
+                        >
+                          <Checkbox
+                            id={`${question.id}-${option}`}
+                            onCheckedChange={(checked) => {
+                              const current = responses[question.id] || [];
+                              const next = checked
+                                ? [...current, option]
+                                : current.filter((v: string) => v !== option);
+                              handleInputChange(question.id, next);
+                            }}
+                          />
+                          <Label htmlFor={`${question.id}-${option}`}>
+                            {option}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 {question.type === "location" && (
                   <div className="flex items-center space-x-2">
                     <Input
