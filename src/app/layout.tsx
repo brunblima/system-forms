@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "./_components/theme.provider";
-import NProgressHandler from "@/app/hooks/NProgressHandler";
+import NProgressHandler from "@/hooks/NProgressHandler";
 
 import "./globals.css";
 

@@ -1,49 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import FormBuilder from "@/app/app/_components/form-builder";
+import FormBuilder from "@/app/app/_components/form-builder/FormBuilder";
+import { useFetchForm } from "@/hooks/useFetchForm";
 
 export default function EditFormPage() {
-  const router = useRouter();
-  const params = useParams();
-  const [form, setForm] = useState();
+  const { form, loading, error } = useFetchForm();
 
-  useEffect(() => {
-    const fetchForm = async () => {
-      try {
-        const id = params?.id;
-        if (!id) {
-          throw new Error("ID do formulário não foi fornecido");
-        }
+  if (loading) {
+    return <div>Carregando...</div>;
+  }
 
-        const response = await fetch(`/api/getForms/${id}`);
-        if (!response.ok) {
-          throw new Error(
-            `Erro ao carregar formulário: ${response.statusText}`
-          );
-        }
-
-        const data = await response.json();
-        setForm(data);
-      } catch (error) {
-        console.error("Erro ao buscar formulário:", error);
-        alert("Não foi possível carregar o formulário.");
-        router.push("/app");
-      } finally {
-      }
-    };
-
-    fetchForm();
-  }, [params, router]);
+  if (error) {
+    return <div>{error}</div>;
+  }
 
   if (!form) {
     return null;
   }
 
-  return (
-    <>
-      <FormBuilder initialData={form} />
-    </>
-  );
+  return <FormBuilder initialData={form} />;
 }

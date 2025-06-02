@@ -23,20 +23,35 @@ export async function PUT(
       .filter((q: any) => q.id)
       .map((q: any) => q.id);
 
+    console.log("Question IDs from frontend:", questionIdsFromFrontend);
+
     // Remover perguntas que não estão no payload do frontend
     await db.question.deleteMany({
       where: {
         formId: id,
         NOT: {
-          id: { in: questionIdsFromFrontend }, // Remove as perguntas que não foram enviadas
+          id: { in: questionIdsFromFrontend },
         },
       },
     });
 
+    // Obter as perguntas existentes no banco para validação
+    const existingQuestions = await db.question.findMany({
+      where: {
+        formId: id,
+        id: { in: questionIdsFromFrontend },
+      },
+      select: { id: true },
+    });
+
+    const existingQuestionIds = new Set(existingQuestions.map((q) => q.id));
+    console.log("Existing question IDs in DB:", Array.from(existingQuestionIds));
+
     // Atualizar ou criar as perguntas enviadas
     for (const question of questions) {
-      if (question.id) {
+      if (question.id && existingQuestionIds.has(question.id)) {
         // Atualizar pergunta existente
+        console.log(`Updating question with ID: ${question.id}`);
         await db.question.update({
           where: { id: question.id },
           data: {
@@ -45,20 +60,22 @@ export async function PUT(
             isRequired: question.isRequired,
             allowImage: question.allowImage,
             order: question.order,
-            options: { set: question.options || [] },
+            options: question.options || [], // Array simples, sem set
           },
         });
       } else {
         // Criar nova pergunta
+        console.log(`Creating new question: ${question.title}`);
         await db.question.create({
           data: {
+            id: question.id && !existingQuestionIds.has(question.id) ? undefined : question.id,
             title: question.title,
             type: question.type,
             isRequired: question.isRequired,
             allowImage: question.allowImage,
             order: question.order,
-            options: question.options || [],
-            formId: id, // Vincular a pergunta ao formulário
+            options: question.options || [], // Array simples
+            formId: id,
           },
         });
       }

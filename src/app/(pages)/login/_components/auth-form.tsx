@@ -47,6 +47,8 @@ export function LoginForm() {
           variant: "destructive",
         });
       }
+    } finally {
+      setLoading(false); // Garante que o loading seja desativado
     }
   };
 
